@@ -32,7 +32,8 @@ jobs:
           mkdir -p _site
           cp index.html _site/index.html
           printf '' > _site/.nojekyll
-          base64 --decode preview/pr225-visual-gate-minimal.zip.b64 > /tmp/pr225-visual-gate.zip
+          cat preview/pr225-b64-*.txt | base64 --decode > /tmp/pr225-visual-gate.zip
+          echo '766b675ea20a849288c652a5ed0cc63e7944446b785f46347bae449389ad8c06  /tmp/pr225-visual-gate.zip' | sha256sum --check --strict
           unzip -q /tmp/pr225-visual-gate.zip -d _site
           node <<'NODE'
           const fs = require('node:fs');
