@@ -1,13 +1,15 @@
 import {
-  WEBGL_WATER_SURFACE_RENDER_LIFT_METERS,
+  WEBGL_SURFACE_MATERIAL_IDS,
   pointInCoursePolygon,
-  waterSurfaceGroupsFor,
 } from "./webgl-terrain-materials.js";
 
-export const WEBGL_VISUAL_WATERCOURSE_VERSION = "authored-spline-v3";
+export const WEBGL_VISUAL_WATERCOURSE_VERSION = "authored-spline-v4";
+export const WEBGL_VISUAL_WATER_SURFACE_LIFT_METERS = 0.032;
+export const WEBGL_VISUAL_WATER_SHORELINE_WIDTH_METERS = 0.55;
 
-const WATER_BANK_OUTER_RISE_PER_METER = 0.008;
-const WATER_BANK_MAX_INFLUENCE_METERS = 6;
+const SHORELINE_STATIONS = 44;
+const SHORELINE_OUTER_EPSILON_METERS = 0.003;
+const SHORELINE_INNER_EPSILON_METERS = 0.004;
 
 const CONTROLS = Object.freeze({
   "north-inlet": Object.freeze({ axis: "z", points: Object.freeze([
@@ -31,6 +33,15 @@ const clamp = (value, minimum, maximum) =>
 const authoredGroups = (world) => world.waterSurfaceGroups ?? (
   world.waterSurfacePoints?.length >= 3 ? [world.waterSurfacePoints] : []
 );
+
+const polygonCross = (first, second, third) =>
+  (second.x - first.x) * (third.z - first.z) -
+  (second.z - first.z) * (third.x - first.x);
+
+const polygonSignedArea = (points) => points.reduce((area, point, index) => {
+  const next = points[(index + 1) % points.length];
+  return area + point.x * next.z - next.x * point.z;
+}, 0) / 2;
 
 const sectionAt = (polygon, axis, primary) => {
   const cross = axis === "z" ? "x" : "z";
@@ -110,80 +121,291 @@ const buildVisualGroup = (world, gameplay) => {
   return group;
 };
 
-const pointSegmentDistance = (point, start, end) => {
+const sampleBank = (points, count) => Object.freeze(Array.from(
+  { length: count },
+  (_, index) => {
+    const position = (index / (count - 1)) * (points.length - 1);
+    const firstIndex = Math.floor(position);
+    const secondIndex = Math.min(points.length - 1, firstIndex + 1);
+    const amount = position - firstIndex;
+    return Object.freeze({
+      x: points[firstIndex].x +
+        (points[secondIndex].x - points[firstIndex].x) * amount,
+      z: points[firstIndex].z +
+        (points[secondIndex].z - points[firstIndex].z) * amount,
+    });
+  },
+));
+
+const inwardNormal = (start, end) => {
   const dx = end.x - start.x;
   const dz = end.z - start.z;
-  const lengthSquared = dx * dx + dz * dz;
-  if (lengthSquared <= 1e-12) {
-    return Math.hypot(point.x - start.x, point.z - start.z);
+  const length = Math.hypot(dx, dz);
+  if (length <= 1e-9) {
+    throw new RangeError("visual shoreline contains a degenerate edge");
   }
-  const progress = clamp(
-    ((point.x - start.x) * dx + (point.z - start.z) * dz) /
-      lengthSquared,
-    0,
-    1,
-  );
-  return Math.hypot(
-    point.x - (start.x + dx * progress),
-    point.z - (start.z + dz * progress),
-  );
+  return Object.freeze({ x: -dz / length, z: dx / length });
 };
 
-const bankProfileFor = (world, points, waterSurfaceIndex) => Object.freeze({
+const shorelineInnerPoints = (outer) => Object.freeze(outer.map((point, index) => {
+  const prior = outer[(index + outer.length - 1) % outer.length];
+  const next = outer[(index + 1) % outer.length];
+  const priorNormal = inwardNormal(prior, point);
+  const nextNormal = inwardNormal(point, next);
+  let directionX = priorNormal.x + nextNormal.x;
+  let directionZ = priorNormal.z + nextNormal.z;
+  const directionLength = Math.hypot(directionX, directionZ);
+  if (directionLength <= 1e-9) {
+    directionX = nextNormal.x;
+    directionZ = nextNormal.z;
+  } else {
+    directionX /= directionLength;
+    directionZ /= directionLength;
+  }
+  let distance = WEBGL_VISUAL_WATER_SHORELINE_WIDTH_METERS;
+  for (let attempt = 0; attempt < 12; attempt += 1) {
+    const candidate = Object.freeze({
+      x: point.x + directionX * distance,
+      z: point.z + directionZ * distance,
+    });
+    if (pointInCoursePolygon(outer, candidate)) return candidate;
+    distance *= .5;
+  }
+  throw new RangeError("visual shoreline cannot remain inside watercourse");
+}));
+
+const appendClockwiseTriangle = (
+  indices,
+  firstIndex,
+  secondIndex,
+  thirdIndex,
+  first,
+  second,
+  third,
+) => {
+  const winding = polygonCross(first, second, third);
+  if (Math.abs(winding) <= 1e-9) {
+    throw new RangeError("visual watercourse triangle is degenerate");
+  }
+  if (winding < 0) {
+    indices.push(firstIndex, secondIndex, thirdIndex);
+  } else {
+    indices.push(firstIndex, thirdIndex, secondIndex);
+  }
+};
+
+const appendVisualWaterGroup = ({
+  positions,
+  normals,
+  materials,
+  indices,
+  world,
   points,
-  waterSurfaceHeight:
-    (world.waterLevels?.[waterSurfaceIndex] ?? world.waterLevel) +
-    WEBGL_WATER_SURFACE_RENDER_LIFT_METERS,
-  bounds: Object.freeze({
-    minimumX: Math.min(...points.map(({ x }) => x)) -
-      WATER_BANK_MAX_INFLUENCE_METERS,
-    maximumX: Math.max(...points.map(({ x }) => x)) +
-      WATER_BANK_MAX_INFLUENCE_METERS,
-    minimumZ: Math.min(...points.map(({ z }) => z)) -
-      WATER_BANK_MAX_INFLUENCE_METERS,
-    maximumZ: Math.max(...points.map(({ z }) => z)) +
-      WATER_BANK_MAX_INFLUENCE_METERS,
-  }),
-});
-
-const distanceToBankProfile = (profile, point) => {
-  if (
-    point.x < profile.bounds.minimumX ||
-    point.x > profile.bounds.maximumX ||
-    point.z < profile.bounds.minimumZ ||
-    point.z > profile.bounds.maximumZ
-  ) {
-    return Number.POSITIVE_INFINITY;
+  surfaceIndex,
+}) => {
+  if (points.length % 2 !== 0 || points.length < 8) {
+    throw new RangeError("visual watercourse requires paired banks");
   }
-  let distance = Number.POSITIVE_INFINITY;
-  for (let index = 0; index < profile.points.length; index += 1) {
-    distance = Math.min(
-      distance,
-      pointSegmentDistance(
-        point,
-        profile.points[index],
-        profile.points[(index + 1) % profile.points.length],
+  const stationCount = points.length / 2;
+  const left = points.slice(0, stationCount);
+  const right = [...points.slice(stationCount)].reverse();
+  const waterLevel = world.waterLevels?.[surfaceIndex] ?? world.waterLevel;
+  const waterHeight = waterLevel + WEBGL_VISUAL_WATER_SURFACE_LIFT_METERS;
+  const firstWaterVertex = positions.length / 3;
+
+  for (let index = 0; index < stationCount; index += 1) {
+    for (const point of [left[index], right[index]]) {
+      positions.push(point.x, waterHeight, point.z);
+      normals.push(0, 1, 0);
+      materials.push(WEBGL_SURFACE_MATERIAL_IDS.water);
+    }
+  }
+
+  let waterTriangles = 0;
+  for (let index = 0; index < stationCount - 1; index += 1) {
+    const currentLeftIndex = firstWaterVertex + index * 2;
+    const currentRightIndex = currentLeftIndex + 1;
+    const nextLeftIndex = currentLeftIndex + 2;
+    const nextRightIndex = currentLeftIndex + 3;
+    appendClockwiseTriangle(
+      indices,
+      currentLeftIndex,
+      nextLeftIndex,
+      currentRightIndex,
+      left[index],
+      left[index + 1],
+      right[index],
+    );
+    appendClockwiseTriangle(
+      indices,
+      currentRightIndex,
+      nextLeftIndex,
+      nextRightIndex,
+      right[index],
+      left[index + 1],
+      right[index + 1],
+    );
+    waterTriangles += 2;
+  }
+
+  const shorelineLeft = sampleBank(left, SHORELINE_STATIONS);
+  const shorelineRight = sampleBank(right, SHORELINE_STATIONS);
+  const boundary = [...shorelineLeft, ...shorelineRight.reverse()];
+  const outer = polygonSignedArea(boundary) > 0
+    ? boundary
+    : [...boundary].reverse();
+  const inner = shorelineInnerPoints(outer);
+  const firstShorelineVertex = positions.length / 3;
+
+  for (const point of outer) {
+    positions.push(
+      point.x,
+      Math.max(
+        waterHeight + SHORELINE_OUTER_EPSILON_METERS,
+        world.surfaceElevationAt(point.x, point.z) +
+          SHORELINE_OUTER_EPSILON_METERS,
       ),
+      point.z,
     );
+    normals.push(0, 1, 0);
+    materials.push(WEBGL_SURFACE_MATERIAL_IDS.waterShoreline);
   }
-  return distance;
+  for (const point of inner) {
+    positions.push(
+      point.x,
+      waterHeight + SHORELINE_INNER_EPSILON_METERS,
+      point.z,
+    );
+    normals.push(0, 1, 0);
+    materials.push(WEBGL_SURFACE_MATERIAL_IDS.waterShoreline);
+  }
+
+  let shorelineTriangles = 0;
+  const innerOffset = outer.length;
+  for (let index = 0; index < outer.length; index += 1) {
+    const next = (index + 1) % outer.length;
+    appendClockwiseTriangle(
+      indices,
+      firstShorelineVertex + index,
+      firstShorelineVertex + innerOffset + index,
+      firstShorelineVertex + innerOffset + next,
+      outer[index],
+      inner[index],
+      inner[next],
+    );
+    appendClockwiseTriangle(
+      indices,
+      firstShorelineVertex + index,
+      firstShorelineVertex + innerOffset + next,
+      firstShorelineVertex + next,
+      outer[index],
+      inner[next],
+      outer[next],
+    );
+    shorelineTriangles += 2;
+  }
+
+  return Object.freeze({
+    waterVertices: stationCount * 2,
+    waterTriangles,
+    shorelineVertices: outer.length * 2,
+    shorelineTriangles,
+  });
 };
 
-const visualSurfaceElevationFor = (world, profiles) => (x, z) => {
-  const original = world.surfaceElevationAt(x, z);
-  const point = { x, z };
-  let ceiling = Number.POSITIVE_INFINITY;
-  for (const profile of profiles) {
-    if (pointInCoursePolygon(profile.points, point)) continue;
-    const distance = distanceToBankProfile(profile, point);
-    if (distance > WATER_BANK_MAX_INFLUENCE_METERS) continue;
-    ceiling = Math.min(
-      ceiling,
-      profile.waterSurfaceHeight + distance * WATER_BANK_OUTER_RISE_PER_METER,
-    );
+export function replaceVisualWatercourseGeometry(geometry, world) {
+  if (!CONTROLS[world.id]) return geometry;
+  const waterBatchIndex = geometry.surfaceBatches.findIndex(
+    ({ material }) => material === "water",
+  );
+  if (waterBatchIndex < 0) return geometry;
+  const waterBatch = geometry.surfaceBatches[waterBatchIndex];
+  if (waterBatch.firstIndex + waterBatch.indexCount !== geometry.indices.length) {
+    throw new RangeError("visual watercourse must remain the final surface batch");
   }
-  return Math.min(original, ceiling);
-};
+
+  let firstWaterVertex = Number.POSITIVE_INFINITY;
+  for (
+    let index = waterBatch.firstIndex;
+    index < waterBatch.firstIndex + waterBatch.indexCount;
+    index += 1
+  ) {
+    firstWaterVertex = Math.min(firstWaterVertex, geometry.indices[index]);
+  }
+  if (!Number.isInteger(firstWaterVertex)) {
+    throw new RangeError("visual watercourse batch has no vertices");
+  }
+
+  const positions = Array.from(
+    geometry.positions.subarray(0, firstWaterVertex * 3),
+  );
+  const normals = Array.from(
+    geometry.normals.subarray(0, firstWaterVertex * 3),
+  );
+  const materials = Array.from(
+    geometry.materials.subarray(0, firstWaterVertex),
+  );
+  const indices = Array.from(
+    geometry.indices.subarray(0, waterBatch.firstIndex),
+  );
+
+  let waterVertices = 0;
+  let waterTriangles = 0;
+  let shorelineVertices = 0;
+  let shorelineTriangles = 0;
+  const groups = authoredGroups(world);
+  for (let index = 0; index < groups.length; index += 1) {
+    const result = appendVisualWaterGroup({
+      positions,
+      normals,
+      materials,
+      indices,
+      world,
+      points: groups[index],
+      surfaceIndex: index,
+    });
+    waterVertices += result.waterVertices;
+    waterTriangles += result.waterTriangles;
+    shorelineVertices += result.shorelineVertices;
+    shorelineTriangles += result.shorelineTriangles;
+  }
+
+  const indexCount = indices.length - waterBatch.firstIndex;
+  const surfaceBatches = geometry.surfaceBatches.map((batch, index) =>
+    index === waterBatchIndex
+      ? Object.freeze({
+        material: "water",
+        firstIndex: waterBatch.firstIndex,
+        indexCount,
+        triangleCount: indexCount / 3,
+      })
+      : batch
+  );
+  const materialCounts = Object.freeze({
+    ...geometry.materialCounts,
+    water: waterVertices,
+    waterShoreline: shorelineVertices,
+  });
+  const waterShorelineByteLength = shorelineVertices * (
+    Float32Array.BYTES_PER_ELEMENT * 6 + Uint8Array.BYTES_PER_ELEMENT
+  ) + shorelineTriangles * 3 * Uint32Array.BYTES_PER_ELEMENT;
+
+  return Object.freeze({
+    ...geometry,
+    waterShorelineVertexCount: shorelineVertices,
+    waterShorelineTriangleCount: shorelineTriangles,
+    waterShorelineByteLength,
+    surfaceTriangleCount:
+      geometry.surfaceTriangleCount - waterBatch.triangleCount +
+      waterTriangles + shorelineTriangles,
+    surfaceBatches: Object.freeze(surfaceBatches),
+    positions: new Float32Array(positions),
+    normals: new Float32Array(normals),
+    materials: new Uint8Array(materials),
+    indices: new Uint32Array(indices),
+    materialCounts,
+  });
+}
 
 export function createVisualWatercourseWorld(world) {
   const gameplay = authoredGroups(world)[0];
@@ -193,18 +415,10 @@ export function createVisualWatercourseWorld(world) {
   const points = Object.freeze(group.map((point) =>
     Object.freeze({ ...point, y: level })
   ));
-  const ribbonWorld = Object.freeze({
+  return Object.freeze({
     ...world,
     waterSurfacePoints: points,
     waterSurfaceGroups: Object.freeze([points]),
     waterLevels: Object.freeze([level]),
-  });
-  const renderedGroups = waterSurfaceGroupsFor(ribbonWorld);
-  const profiles = Object.freeze(renderedGroups.map((rendered, index) =>
-    bankProfileFor(ribbonWorld, rendered, index)
-  ));
-  return Object.freeze({
-    ...ribbonWorld,
-    surfaceElevationAt: visualSurfaceElevationFor(world, profiles),
   });
 }
