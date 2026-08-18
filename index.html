@@ -9,18 +9,14 @@
     * { box-sizing: border-box; }
     html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: #07130d; color: #f6f1df; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif; }
     iframe { position: fixed; inset: 0; width: 100%; height: 100%; border: 0; background: #07130d; }
-    #status { position: fixed; z-index: 10; left: 14px; right: 14px; bottom: max(14px, env(safe-area-inset-bottom)); padding: 12px 14px; border: 1px solid rgba(255,255,255,.16); border-radius: 16px; background: rgba(5,16,11,.92); -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px); box-shadow: 0 12px 40px rgba(0,0,0,.38); font-size: 12px; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; }
+    #status { position: fixed; z-index: 10; left: 14px; right: 14px; bottom: max(14px, env(safe-area-inset-bottom)); max-height: 42vh; overflow: auto; padding: 12px 14px; border: 1px solid rgba(255,255,255,.16); border-radius: 16px; background: rgba(5,16,11,.94); -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px); box-shadow: 0 12px 40px rgba(0,0,0,.38); font-size: 12px; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; }
     #status[data-ready="true"] { display: none; }
     #status strong { display: block; margin-bottom: 5px; color: #f0d36a; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; }
   </style>
 </head>
 <body>
-  <iframe
-    id="preview"
-    src="./labs/renderer-evaluation/index.html?probe=1&backend=webgl2-hybrid&scenario=north-inlet.watercourse.overview&strict=1"
-    title="Golf IQ iPhone preview"
-  ></iframe>
-  <div id="status"><strong>Golf IQ preview</strong><span id="status-text">Starting renderer…</span></div>
+  <iframe id="preview" title="Golf IQ iPhone preview"></iframe>
+  <div id="status"><strong>Golf IQ preview</strong><span id="status-text">Resolving current preview…</span></div>
   <script>
     const frame = document.querySelector("#preview");
     const status = document.querySelector("#status");
@@ -28,6 +24,7 @@
     let ready = false;
     let readyPromise = null;
     let elapsed = 0;
+    let previewHead = "";
 
     const show = (message) => {
       status.dataset.ready = "false";
@@ -35,7 +32,7 @@
     };
 
     const inspect = () => {
-      if (ready) return;
+      if (ready || !frame.src) return;
       elapsed += 250;
       try {
         const child = frame.contentWindow;
@@ -43,7 +40,10 @@
         const errors = child?.__rendererBootErrors ?? [];
         const rendererError = documentElement?.dataset?.rendererError;
         if (errors.length || rendererError) {
-          show(`Renderer failed:\n${errors.join("\n\n") || rendererError}`);
+          show(
+            `Preview ${previewHead.slice(0, 8)}\nRenderer failed:\n` +
+            `${errors.join("\n\n") || rendererError}`,
+          );
           return;
         }
         const probe = child?.__golfIqRendererProbe;
@@ -57,29 +57,60 @@
             ready = true;
             status.dataset.ready = "true";
           }).catch((cause) => {
-            show(`Renderer preparation failed:\n${cause?.stack ?? cause?.message ?? String(cause)}`);
+            show(
+              `Preview ${previewHead.slice(0, 8)}\nRenderer preparation failed:\n` +
+              `${cause?.stack ?? cause?.message ?? String(cause)}`,
+            );
           });
         }
         if (!probe && elapsed >= 12000) {
           const datasets = documentElement?.dataset ?? {};
           show(
-            "Renderer boot timeout.\n" +
+            `Preview ${previewHead.slice(0, 8)}\nRenderer boot timeout.\n` +
             `requestedBackend=${datasets.requestedBackend ?? ""}\n` +
             `actualBackend=${datasets.actualBackend ?? ""}\n` +
             `fallbackReason=${datasets.fallbackReason ?? ""}\n` +
-            `rendererError=${datasets.rendererError ?? ""}`
+            `rendererError=${datasets.rendererError ?? ""}`,
           );
         }
       } catch (cause) {
-        show(`Preview diagnostic failed:\n${cause?.message ?? String(cause)}`);
+        show(
+          `Preview ${previewHead.slice(0, 8)}\nDiagnostic failed:\n` +
+          `${cause?.stack ?? cause?.message ?? String(cause)}`,
+        );
+      }
+    };
+
+    const start = async () => {
+      try {
+        const response = await fetch(
+          `https://api.github.com/repos/Plicto/Golf-iq/branches/iphone-preview?t=${Date.now()}`,
+          { cache: "no-store" },
+        );
+        if (!response.ok) {
+          throw new Error(`GitHub preview lookup failed: ${response.status}`);
+        }
+        const branch = await response.json();
+        previewHead = branch?.commit?.sha ?? "";
+        if (!/^[0-9a-f]{40}$/.test(previewHead)) {
+          throw new Error("GitHub preview lookup returned an invalid commit");
+        }
+        show(`Loading preview ${previewHead.slice(0, 8)}…`);
+        frame.src =
+          `https://raw.githack.com/Plicto/Golf-iq/${previewHead}/labs/renderer-evaluation/index.html` +
+          `?probe=1&backend=webgl2-hybrid&scenario=north-inlet.watercourse.overview&strict=1&previewHead=${previewHead}`;
+      } catch (cause) {
+        show(`Preview bootstrap failed:\n${cause?.stack ?? cause?.message ?? String(cause)}`);
       }
     };
 
     frame.addEventListener("load", () => {
       elapsed = 0;
+      readyPromise = null;
       inspect();
     });
     window.setInterval(inspect, 250);
+    start();
   </script>
 </body>
 </html>
