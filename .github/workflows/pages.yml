@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
   pages: write
   id-token: write
 
@@ -33,7 +33,7 @@ jobs:
           mkdir -p _site
           cp index.html _site/index.html
           printf '' > _site/.nojekyll
-          curl --fail --location --retry 2 --silent --show-error 'https://sdmntprnortheu.oaiusercontent.com/files/00000000-9374-81f4-bd12-4a9fcb53a1ca/raw?se=2026-08-18T07%3A49%3A57Z&sp=r&sv=2026-02-06&sr=b&scid=ba16e8ba-4af0-581b-9d40-c6fefc46825d&skoid=a0b9f82a-c86e-4064-a822-2aa38890bb37&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-08-18T07%3A42%3A03Z&ske=2026-08-19T07%3A42%3A03Z&sks=b&skv=2026-02-06&sig=vUPjuHR9Q/32Wfa6J912L00VBEHybnlMA8azn1U2r%2BI%3D' --output /tmp/pr225-pages-public.zip
+          curl --fail --location --retry 2 --silent --show-error 'https://sdmntpritalynorth.oaiusercontent.com/files/00000000-9964-8246-ac51-46a1ed4da1c5/raw?se=2026-08-18T07%3A56%3A09Z&sp=r&sv=2026-02-06&sr=b&scid=ad7d153b-8dbd-530b-90a4-cead540fbfaa&skoid=a0b9f82a-c86e-4064-a822-2aa38890bb37&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-08-18T04%3A47%3A59Z&ske=2026-08-19T04%3A47%3A59Z&sks=b&skv=2026-02-06&sig=AOGl26EFcZC4u0RIa3bJpiGTkW3DsTKKPGQml7SJd7Y%3D' --output /tmp/pr225-pages-public.zip
           echo 'f5ceccc06a2e401fa595a7926f5a934faf730a96dc0ede6188feb4e4b0b9d2ab  /tmp/pr225-pages-public.zip' | sha256sum --check --strict
           unzip -q /tmp/pr225-pages-public.zip -d _site
           node <<'NODE'
@@ -71,3 +71,26 @@ jobs:
       - name: Deploy Pages
         id: deployment
         uses: actions/deploy-pages@v4
+      - name: Record verified live preview
+        env:
+          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .preview
+          cat > .preview/pr225-live.json <<JSON
+          {
+            "gateVersion": "pr225-safari-v3",
+            "rendererSourceFingerprint": "f4f4e5f6d18f22dd4657f7df411faf3ea29f63606e24fed0a5403a8bb2c21afe",
+            "sourceHead": "4cb00faa423f900a471568d217260322f392c53f",
+            "artifactSha256": "f5ceccc06a2e401fa595a7926f5a934faf730a96dc0ede6188feb4e4b0b9d2ab",
+            "deploymentCommit": "${GITHUB_SHA}",
+            "pageUrl": "${PAGE_URL}",
+            "visualGateUrl": "${PAGE_URL}labs/renderer-visual-gate/"
+          }
+          JSON
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add .preview/pr225-live.json
+          git commit -m 'Record PR225 preview deployment [skip ci]'
+          git push origin HEAD:main
