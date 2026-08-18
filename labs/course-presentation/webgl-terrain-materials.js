@@ -5,13 +5,14 @@ import {
 
 export const WEBGL_GROUND_ART_VERSION = "links-ground-v6";
 export const WEBGL_WATERCOURSE_ART_VERSION =
-  "watercourse-edge-and-surface-v1";
+  "watercourse-edge-and-surface-v2";
 export const WEBGL_WATER_SHORELINE_WIDTH_METERS = 0.82;
 export const WEBGL_WATER_SHORELINE_OUTER_LIFT_METERS = 0.019;
 export const WEBGL_WATER_SHORELINE_INNER_LIFT_METERS = 0.015;
-export const WEBGL_WATER_SHORELINE_MAX_VERTICES = 48;
-export const WEBGL_WATER_SHORELINE_MAX_TRIANGLES = 48;
-export const WEBGL_WATER_SHORELINE_MAX_BYTES = 1_776;
+export const WEBGL_WATERCOURSE_SMOOTHING_PASSES = 2;
+export const WEBGL_WATER_SHORELINE_MAX_VERTICES = 192;
+export const WEBGL_WATER_SHORELINE_MAX_TRIANGLES = 192;
+export const WEBGL_WATER_SHORELINE_MAX_BYTES = 7_104;
 export const WEBGL_TERRAIN_COLUMNS = 96;
 export const WEBGL_TERRAIN_ROWS = 192;
 export const WEBGL_TEE_RADIUS_X_METERS = 7.5;
@@ -95,10 +96,52 @@ export function pointInCoursePolygon(points, point) {
   return inside;
 }
 
-export const waterSurfaceGroupsFor = (world) =>
-  world.waterSurfaceGroups ?? (
+const WATER_SURFACE_GROUP_CACHE = new WeakMap();
+
+const interpolateWaterPoint = (from, to, amount) => {
+  const point = {
+    x: from.x + (to.x - from.x) * amount,
+    z: from.z + (to.z - from.z) * amount,
+  };
+  if (Number.isFinite(from.y) && Number.isFinite(to.y)) {
+    point.y = from.y + (to.y - from.y) * amount;
+  }
+  return Object.freeze(point);
+};
+
+const smoothWaterSurfaceGroup = (points) => {
+  let smoothed = [...points];
+  for (let pass = 0; pass < WEBGL_WATERCOURSE_SMOOTHING_PASSES; pass += 1) {
+    const source = smoothed;
+    const next = [];
+    for (let index = 0; index < source.length; index += 1) {
+      const point = source[index];
+      const following = source[(index + 1) % source.length];
+      const baseRatio = pass === 0 ? 0.18 : 0.14;
+      const variation = (((index * 37 + pass * 19) % 7) - 3) * 0.006;
+      const ratio = clamp(baseRatio + variation, 0.11, 0.22);
+      next.push(
+        interpolateWaterPoint(point, following, ratio),
+        interpolateWaterPoint(point, following, 1 - ratio),
+      );
+    }
+    smoothed = next;
+  }
+  return Object.freeze(smoothed);
+};
+
+export const waterSurfaceGroupsFor = (world) => {
+  const cached = WATER_SURFACE_GROUP_CACHE.get(world);
+  if (cached) return cached;
+  const authored = world.waterSurfaceGroups ?? (
     world.waterSurfacePoints.length < 3 ? [] : [world.waterSurfacePoints]
   );
+  const smoothed = Object.freeze(authored.map((points) =>
+    smoothWaterSurfaceGroup(points)
+  ));
+  WATER_SURFACE_GROUP_CACHE.set(world, smoothed);
+  return smoothed;
+};
 
 export function pointInCourseTee(world, point, padding = 0) {
   finitePoint(point, "tee point");

@@ -1216,7 +1216,7 @@ export function createWebglCourseRenderer(canvas, {
       gl.depthFunc(gl.LEQUAL);
       gl.enable(gl.POLYGON_OFFSET_FILL);
       geometry.terrain.surfaceBatches.forEach((batch, index) => {
-        const priority = -(index + 1);
+        const priority = batch.material === "water" ? -12 : -(index + 1);
         gl.polygonOffset(priority, priority);
         gl.drawElements(
           gl.TRIANGLES,
