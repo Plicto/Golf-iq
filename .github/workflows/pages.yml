@@ -38,8 +38,8 @@ jobs:
           set -euo pipefail
           rm -rf /tmp/pr225-pages-public
           mkdir -p /tmp/pr225-pages-public
-          curl --fail --location --retry 2 --silent --show-error 'https://sdmntprwestus.oaiusercontent.com/files/00000000-0d98-8230-bf61-8dee8d79e182/raw?se=2026-08-18T09%3A40%3A10Z&sp=r&sv=2026-02-06&sr=b&scid=8e13e286-52ff-5bdf-af41-87fde30897cc&skoid=a0b9f82a-c86e-4064-a822-2aa38890bb37&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-08-18T06%3A05%3A02Z&ske=2026-08-19T06%3A05%3A02Z&sks=b&skv=2026-02-06&sig=C9SrO4CVV2Ve14bmRsW%2B%2BgI36CVy6Km%2Bu9D7XoMJ9D0%3D' --output /tmp/pr225-pages-public.zip
-          echo '98f236440ae97320fbfe250f098cb56f577bdfa7a5577be67bc8bedd15bec2a0  /tmp/pr225-pages-public.zip' | sha256sum --check --strict
+          curl --fail --location --retry 2 --silent --show-error 'https://sdmntprukwest.oaiusercontent.com/files/00000000-2eec-8243-88f3-3d857062ebb5/raw?se=2026-08-18T13%3A03%3A17Z&sp=r&sv=2026-02-06&sr=b&scid=2fd51015-a739-54df-a7f5-3fe439d72e77&skoid=a0b9f82a-c86e-4064-a822-2aa38890bb37&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-08-17T22%3A41%3A21Z&ske=2026-08-18T22%3A41%3A21Z&sks=b&skv=2026-02-06&sig=OEPXlbPYIzNjklxiI8s/xklnfSAQduwJv7iDvPEElZg%3D' --output /tmp/pr225-pages-public.zip
+          echo 'e21ab22dab01d6019a3e533830d4584a960d049683bfffc57045001c8f4dafe9  /tmp/pr225-pages-public.zip' | sha256sum --check --strict
           unzip -q /tmp/pr225-pages-public.zip -d /tmp/pr225-pages-public
 
           rm -rf labs quality
@@ -72,9 +72,9 @@ jobs:
           fs.writeFileSync(path, source);
           NODE
 
-          grep -q 'pr225-safari-v4' labs/renderer-visual-gate/renderer-visual-gate-protocol.js
-          grep -q 'faf1e3cc7d18598e76f5e8d2b692a10277994502142ce31f1c51c79154298053' labs/renderer-visual-gate/renderer-visual-gate-protocol.js
-          grep -q 'watercourse-edge-and-surface-v2' labs/renderer-visual-gate/renderer-visual-gate-protocol.js
+          grep -q 'pr225-safari-v5' labs/renderer-visual-gate/renderer-visual-gate-protocol.js
+          grep -q '2981b9e07013f26119666d68a7fec2403d8510dc43bf2b0267ebfe06f47a2ef5' labs/renderer-visual-gate/renderer-visual-gate-protocol.js
+          grep -q 'watercourse-edge-and-surface-v3' labs/renderer-visual-gate/renderer-visual-gate-protocol.js
           test -f labs/renderer-evaluation/index.html
           test -f quality/renderer-source-manifest.v1.json
 
@@ -82,7 +82,7 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add labs quality .nojekyll
           if ! git diff --cached --quiet; then
-            git commit -m 'Materialize PR225 v4 visual gate [skip ci]'
+            git commit -m 'Materialize PR225 v5 visual gate [skip ci]'
             git push origin HEAD:main
           fi
 
@@ -118,15 +118,15 @@ jobs:
           mkdir -p .preview
           cat > .preview/pr225-live.json <<JSON
           {
-            "gateVersion": "pr225-safari-v4",
-            "rendererSourceFingerprint": "faf1e3cc7d18598e76f5e8d2b692a10277994502142ce31f1c51c79154298053",
-            "sourceHead": "785835b7ca7659b5b4df4cd722b5aa43e41db0ee",
-            "artifactSha256": "98f236440ae97320fbfe250f098cb56f577bdfa7a5577be67bc8bedd15bec2a0",
+            "gateVersion": "pr225-safari-v5",
+            "rendererSourceFingerprint": "2981b9e07013f26119666d68a7fec2403d8510dc43bf2b0267ebfe06f47a2ef5",
+            "sourceHead": "08eeee5e30b083f84f53ff3f27f62539242393f9",
+            "artifactSha256": "e21ab22dab01d6019a3e533830d4584a960d049683bfffc57045001c8f4dafe9",
             "materializedInPublicRepo": true,
             "pageUrl": "${PAGE_URL}",
             "visualGateUrl": "${PAGE_URL}labs/renderer-visual-gate/"
           }
           JSON
           git add .preview/pr225-live.json
-          git commit -m 'Record materialized PR225 v4 preview [skip ci]'
+          git commit -m 'Record materialized PR225 v5 preview [skip ci]'
           git push origin HEAD:main
