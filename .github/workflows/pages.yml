@@ -32,17 +32,18 @@ jobs:
       - name: Check out public demo
         uses: actions/checkout@v4
 
-      - name: Verify materialized v7 identity
+      - name: Verify materialized v8 identity
         shell: bash
         run: |
           set -euo pipefail
-          grep -q 'pr225-safari-v7' labs/renderer-visual-gate/renderer-visual-gate-protocol.js
-          grep -q '19a4f8e055d53bccec6bc96a33270ec6392aecc1b8bffb820f451b35342b0677' labs/renderer-visual-gate/renderer-visual-gate-protocol.js
+          grep -q 'pr225-safari-v8' labs/renderer-visual-gate/renderer-visual-gate-protocol.js
+          grep -q '2112df9e80e0bcecb3cf177f424ea1ee2dbc5b804d150e03bcb44e92001fe45e' labs/renderer-visual-gate/renderer-visual-gate-protocol.js
           grep -q 'watercourse-edge-and-surface-v5' labs/renderer-visual-gate/renderer-visual-gate-protocol.js
-          grep -q 'vertices: 180' labs/renderer-visual-gate/renderer-visual-gate-protocol.js
-          grep -q 'triangles: 180' labs/renderer-visual-gate/renderer-visual-gate-protocol.js
-          grep -q 'bytes: 6_660' labs/renderer-visual-gate/renderer-visual-gate-protocol.js
-          grep -q '19a4f8e055d53bccec6bc96a33270ec6392aecc1b8bffb820f451b35342b0677' quality/renderer-source-manifest.v1.json
+          grep -q 'vertices: 176' labs/renderer-visual-gate/renderer-visual-gate-protocol.js
+          grep -q 'triangles: 176' labs/renderer-visual-gate/renderer-visual-gate-protocol.js
+          grep -q 'bytes: 6_512' labs/renderer-visual-gate/renderer-visual-gate-protocol.js
+          grep -q '2112df9e80e0bcecb3cf177f424ea1ee2dbc5b804d150e03bcb44e92001fe45e' quality/renderer-source-manifest.v1.json
+          test -f labs/course-presentation/webgl-watercourse-visual-v8.js
           test -f labs/renderer-evaluation/index.html
 
       - name: Stage public site
@@ -55,6 +56,14 @@ jobs:
           cp .nojekyll _site/.nojekyll
           cp -R labs _site/labs
           cp -R quality _site/quality
+          SITE_ARTIFACT_SHA256="$(
+            find _site -type f -print0 |
+              sort -z |
+              xargs -0 sha256sum |
+              sha256sum |
+              awk '{print $1}'
+          )"
+          echo "SITE_ARTIFACT_SHA256=$SITE_ARTIFACT_SHA256" >> "$GITHUB_ENV"
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
@@ -68,7 +77,7 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v4
 
-      - name: Verify exact live v7 protocol
+      - name: Verify exact live v8 protocol
         env:
           PAGE_URL: ${{ steps.deployment.outputs.page_url }}
         shell: bash
@@ -78,11 +87,11 @@ jobs:
           verified=false
           for attempt in $(seq 1 12); do
             if curl --fail --location --silent --show-error \
-              "${LIVE_URL}?v=4274a5c-${GITHUB_RUN_ID}-${attempt}" \
-              --output /tmp/pr225-v7-live-protocol.js; then
-              if grep -q 'pr225-safari-v7' /tmp/pr225-v7-live-protocol.js \
-                && grep -q '19a4f8e055d53bccec6bc96a33270ec6392aecc1b8bffb820f451b35342b0677' /tmp/pr225-v7-live-protocol.js \
-                && grep -q 'watercourse-edge-and-surface-v5' /tmp/pr225-v7-live-protocol.js; then
+              "${LIVE_URL}?v=80441bb-${GITHUB_RUN_ID}-${attempt}" \
+              --output /tmp/pr225-v8-live-protocol.js; then
+              if grep -q 'pr225-safari-v8' /tmp/pr225-v8-live-protocol.js \
+                && grep -q '2112df9e80e0bcecb3cf177f424ea1ee2dbc5b804d150e03bcb44e92001fe45e' /tmp/pr225-v8-live-protocol.js \
+                && grep -q 'watercourse-edge-and-surface-v5' /tmp/pr225-v8-live-protocol.js; then
                 verified=true
                 break
               fi
@@ -90,9 +99,9 @@ jobs:
             sleep 5
           done
           test "$verified" = true
-          grep -q 'vertices: 180' /tmp/pr225-v7-live-protocol.js
-          grep -q 'triangles: 180' /tmp/pr225-v7-live-protocol.js
-          grep -q 'bytes: 6_660' /tmp/pr225-v7-live-protocol.js
+          grep -q 'vertices: 176' /tmp/pr225-v8-live-protocol.js
+          grep -q 'triangles: 176' /tmp/pr225-v8-live-protocol.js
+          grep -q 'bytes: 6_512' /tmp/pr225-v8-live-protocol.js
 
       - name: Record verified live preview
         env:
@@ -103,10 +112,11 @@ jobs:
           mkdir -p .preview
           cat > .preview/pr225-live.json <<JSON
           {
-            "gateVersion": "pr225-safari-v7",
-            "rendererSourceFingerprint": "19a4f8e055d53bccec6bc96a33270ec6392aecc1b8bffb820f451b35342b0677",
-            "sourceHead": "4274a5c21a1c555d234940599f1630f4844eeb89",
-            "artifactSha256": "f52733c83765a1204561363ee185db120ca44627f947bacf23f5c0cd81ef91d0",
+            "gateVersion": "pr225-safari-v8",
+            "rendererSourceFingerprint": "2112df9e80e0bcecb3cf177f424ea1ee2dbc5b804d150e03bcb44e92001fe45e",
+            "sourceHead": "80441bb2ab91936161cc29c2090f6f70117450ca",
+            "materializedPublicHead": "9997be31303440d83ee72bcdb50526ad423b52ab",
+            "artifactSha256": "${SITE_ARTIFACT_SHA256}",
             "materializedInPublicRepo": true,
             "liveProtocolVerified": true,
             "pageUrl": "${PAGE_URL}",
@@ -116,5 +126,5 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add .preview/pr225-live.json
-          git commit -m 'Record live-verified PR225 v7 preview [skip ci]'
+          git commit -m 'Record live-verified PR225 v8 preview [skip ci]'
           git push origin HEAD:main
