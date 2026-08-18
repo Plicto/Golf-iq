@@ -5,8 +5,10 @@ import {
   WEBGL_GROUND_ART_VERSION,
   createWebglTerrainGeometry,
 } from "./webgl-terrain-materials.js";
-import { createVisualWatercourseWorld } from
-  "./webgl-watercourse-visual-v8.js";
+import {
+  createVisualWatercourseWorld,
+  replaceVisualWatercourseGeometry,
+} from "./webgl-watercourse-visual-v8.js";
 
 const assertRequest = (message) => {
   const identity = message?.identity;
@@ -33,7 +35,10 @@ self.addEventListener("message", async (event) => {
     const { world } = await loadRecoveryHoleArtSource(identity);
     const visualWorld = createVisualWatercourseWorld(world);
     const startedAt = performance.now();
-    const terrainGeometry = createWebglTerrainGeometry(visualWorld);
+    const terrainGeometry = replaceVisualWatercourseGeometry(
+      createWebglTerrainGeometry(visualWorld),
+      visualWorld,
+    );
     const vegetationInstances = createRoughVegetationInstances(visualWorld, {
       terrainGeometry,
     });
