@@ -17,23 +17,57 @@ concurrency:
 
 jobs:
   deploy:
-    name: Deploy public demo
+    name: Deploy public demo + PR225 gate
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 5
     steps:
-      - name: Check out built demo
+      - name: Check out public demo
         uses: actions/checkout@v4
+      - name: Stage existing demo plus PR225 gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p _site
+          cp index.html _site/index.html
+          printf '' > _site/.nojekyll
+          curl --fail --location --retry 2 --silent --show-error 'https://sdmntprnortheu.oaiusercontent.com/files/00000000-9374-81f4-bd12-4a9fcb53a1ca/raw?se=2026-08-18T07%3A49%3A57Z&sp=r&sv=2026-02-06&sr=b&scid=ba16e8ba-4af0-581b-9d40-c6fefc46825d&skoid=a0b9f82a-c86e-4064-a822-2aa38890bb37&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-08-18T07%3A42%3A03Z&ske=2026-08-19T07%3A42%3A03Z&sks=b&skv=2026-02-06&sig=vUPjuHR9Q/32Wfa6J912L00VBEHybnlMA8azn1U2r%2BI%3D' --output /tmp/pr225-pages-public.zip
+          echo 'f5ceccc06a2e401fa595a7926f5a934faf730a96dc0ede6188feb4e4b0b9d2ab  /tmp/pr225-pages-public.zip' | sha256sum --check --strict
+          unzip -q /tmp/pr225-pages-public.zip -d _site
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = '_site/labs/renderer-visual-gate/renderer-visual-gate.js';
+          let source = fs.readFileSync(path, 'utf8');
+          const marker = 'const assertSourceResponse = (response, path) => {';
+          if (!source.includes(marker)) throw new Error('visual gate response marker missing');
+          source = source.replace(
+            marker,
+            'const PAGE_BASE = "/Golf-iq";\nconst hostedSourcePath = (path) => `${PAGE_BASE}${path}`;\n\n' + marker,
+          );
+          const responseCheck = 'new URL(response.url).pathname !== path';
+          if (!source.includes(responseCheck)) throw new Error('visual gate response path check missing');
+          source = source.replace(
+            responseCheck,
+            'new URL(response.url).pathname !== hostedSourcePath(path)',
+          );
+          const sourceUrl = 'const url = new URL(path, location.origin);';
+          if (!source.includes(sourceUrl)) throw new Error('visual gate source URL marker missing');
+          source = source.replace(
+            sourceUrl,
+            'const url = new URL(hostedSourcePath(path), location.origin);',
+          );
+          fs.writeFileSync(path, source);
+          NODE
+          grep -q 'pr225-safari-v3' _site/labs/renderer-visual-gate/renderer-visual-gate-protocol.js
+          grep -q 'f4f4e5f6d18f22dd4657f7df411faf3ea29f63606e24fed0a5403a8bb2c21afe' _site/labs/renderer-visual-gate/renderer-visual-gate-protocol.js
       - name: Configure Pages
         uses: actions/configure-pages@v5
-        with:
-          enablement: true
-      - name: Upload built demo
+      - name: Upload staged site
         uses: actions/upload-pages-artifact@v4
         with:
-          path: .
+          path: _site
       - name: Deploy Pages
         id: deployment
         uses: actions/deploy-pages@v4
