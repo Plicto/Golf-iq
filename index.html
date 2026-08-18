@@ -2,13 +2,84 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no" />
   <meta name="theme-color" content="#07130d" />
-  <meta http-equiv="refresh" content="0; url=./labs/renderer-evaluation/index.html?probe=1&backend=webgl2-hybrid&scenario=north-inlet.watercourse.overview&strict=1" />
   <title>Golf IQ iPhone Preview</title>
-  <script>
-    location.replace("./labs/renderer-evaluation/index.html?probe=1&backend=webgl2-hybrid&scenario=north-inlet.watercourse.overview&strict=1");
-  </script>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: #07130d; color: #f6f1df; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif; }
+    iframe { position: fixed; inset: 0; width: 100%; height: 100%; border: 0; background: #07130d; }
+    #status { position: fixed; z-index: 10; left: 14px; right: 14px; bottom: max(14px, env(safe-area-inset-bottom)); padding: 12px 14px; border: 1px solid rgba(255,255,255,.16); border-radius: 16px; background: rgba(5,16,11,.92); -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px); box-shadow: 0 12px 40px rgba(0,0,0,.38); font-size: 12px; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; }
+    #status[data-ready="true"] { display: none; }
+    #status strong { display: block; margin-bottom: 5px; color: #f0d36a; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; }
+  </style>
 </head>
-<body></body>
+<body>
+  <iframe
+    id="preview"
+    src="./labs/renderer-evaluation/index.html?probe=1&backend=webgl2-hybrid&scenario=north-inlet.watercourse.overview&strict=1"
+    title="Golf IQ iPhone preview"
+  ></iframe>
+  <div id="status"><strong>Golf IQ preview</strong><span id="status-text">Starting renderer…</span></div>
+  <script>
+    const frame = document.querySelector("#preview");
+    const status = document.querySelector("#status");
+    const text = document.querySelector("#status-text");
+    let ready = false;
+    let readyPromise = null;
+    let elapsed = 0;
+
+    const show = (message) => {
+      status.dataset.ready = "false";
+      text.textContent = message;
+    };
+
+    const inspect = () => {
+      if (ready) return;
+      elapsed += 250;
+      try {
+        const child = frame.contentWindow;
+        const documentElement = child?.document?.documentElement;
+        const errors = child?.__rendererBootErrors ?? [];
+        const rendererError = documentElement?.dataset?.rendererError;
+        if (errors.length || rendererError) {
+          show(`Renderer failed:\n${errors.join("\n\n") || rendererError}`);
+          return;
+        }
+        const probe = child?.__golfIqRendererProbe;
+        if (probe && !readyPromise) {
+          readyPromise = Promise.resolve(probe.ready).then((result) => {
+            if (result?.actualBackend !== "webgl2-hybrid" || result?.fallbackReason) {
+              throw new Error(
+                `Strict WebGL2 failed: ${result?.fallbackReason ?? result?.actualBackend ?? "unknown"}`,
+              );
+            }
+            ready = true;
+            status.dataset.ready = "true";
+          }).catch((cause) => {
+            show(`Renderer preparation failed:\n${cause?.stack ?? cause?.message ?? String(cause)}`);
+          });
+        }
+        if (!probe && elapsed >= 12000) {
+          const datasets = documentElement?.dataset ?? {};
+          show(
+            "Renderer boot timeout.\n" +
+            `requestedBackend=${datasets.requestedBackend ?? ""}\n` +
+            `actualBackend=${datasets.actualBackend ?? ""}\n` +
+            `fallbackReason=${datasets.fallbackReason ?? ""}\n` +
+            `rendererError=${datasets.rendererError ?? ""}`
+          );
+        }
+      } catch (cause) {
+        show(`Preview diagnostic failed:\n${cause?.message ?? String(cause)}`);
+      }
+    };
+
+    frame.addEventListener("load", () => {
+      elapsed = 0;
+      inspect();
+    });
+    window.setInterval(inspect, 250);
+  </script>
+</body>
 </html>
