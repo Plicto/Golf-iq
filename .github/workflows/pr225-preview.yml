@@ -1,0 +1,71 @@
+name: PR225 public Pages preview
+
+on:
+  pull_request:
+    branches:
+      - agent/pr225-public-preview-base
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pr225-public-pages-preview
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Deploy PR225 visual gate
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out preview payload
+        uses: actions/checkout@v4
+      - name: Stage existing demo plus PR225 gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p _site
+          cp index.html _site/index.html
+          printf '' > _site/.nojekyll
+          base64 --decode preview/pr225-visual-gate-minimal.zip.b64 > /tmp/pr225-visual-gate.zip
+          unzip -q /tmp/pr225-visual-gate.zip -d _site
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = '_site/labs/renderer-visual-gate/renderer-visual-gate.js';
+          let source = fs.readFileSync(path, 'utf8');
+          const marker = 'const assertSourceResponse = (response, path) => {';
+          if (!source.includes(marker)) throw new Error('visual gate response marker missing');
+          source = source.replace(
+            marker,
+            'const PAGE_BASE = "/Golf-iq";\nconst hostedSourcePath = (path) => `${PAGE_BASE}${path}`;\n\n' + marker,
+          );
+          const responseCheck = 'new URL(response.url).pathname !== path';
+          if (!source.includes(responseCheck)) throw new Error('visual gate response path check missing');
+          source = source.replace(
+            responseCheck,
+            'new URL(response.url).pathname !== hostedSourcePath(path)',
+          );
+          const sourceUrl = 'const url = new URL(path, location.origin);';
+          if (!source.includes(sourceUrl)) throw new Error('visual gate source URL marker missing');
+          source = source.replace(
+            sourceUrl,
+            'const url = new URL(hostedSourcePath(path), location.origin);',
+          );
+          fs.writeFileSync(path, source);
+          NODE
+          grep -q 'pr225-safari-v3' _site/labs/renderer-visual-gate/renderer-visual-gate-protocol.js
+          grep -q 'f4f4e5f6d18f22dd4657f7df411faf3ea29f63606e24fed0a5403a8bb2c21afe' _site/labs/renderer-visual-gate/renderer-visual-gate-protocol.js
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+      - name: Upload staged preview
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: _site
+      - name: Deploy Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
