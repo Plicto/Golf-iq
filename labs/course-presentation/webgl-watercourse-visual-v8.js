@@ -250,7 +250,7 @@ const appendVisualWaterGroup = ({
 
   const shorelineLeft = sampleBank(left, SHORELINE_STATIONS);
   const shorelineRight = sampleBank(right, SHORELINE_STATIONS);
-  const boundary = [...shorelineLeft, ...shorelineRight.reverse()];
+  const boundary = [...shorelineLeft, ...[...shorelineRight].reverse()];
   const outer = polygonSignedArea(boundary) > 0
     ? boundary
     : [...boundary].reverse();
