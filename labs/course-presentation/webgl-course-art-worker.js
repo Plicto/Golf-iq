@@ -28,6 +28,20 @@ const assertRequest = (message) => {
   return identity;
 };
 
+const withFrozenArrayReverseCompatibility = (work) => {
+  const originalReverse = Array.prototype.reverse;
+  Array.prototype.reverse = function reverse() {
+    return Object.isFrozen(this)
+      ? originalReverse.call(Array.from(this))
+      : originalReverse.call(this);
+  };
+  try {
+    return work();
+  } finally {
+    Array.prototype.reverse = originalReverse;
+  }
+};
+
 self.addEventListener("message", async (event) => {
   const requestId = event.data?.requestId;
   try {
@@ -35,9 +49,11 @@ self.addEventListener("message", async (event) => {
     const { world } = await loadRecoveryHoleArtSource(identity);
     const visualWorld = createVisualWatercourseWorld(world);
     const startedAt = performance.now();
-    const terrainGeometry = replaceVisualWatercourseGeometry(
-      createWebglTerrainGeometry(visualWorld),
-      visualWorld,
+    const terrainGeometry = withFrozenArrayReverseCompatibility(() =>
+      replaceVisualWatercourseGeometry(
+        createWebglTerrainGeometry(visualWorld),
+        visualWorld,
+      )
     );
     const vegetationInstances = createRoughVegetationInstances(visualWorld, {
       terrainGeometry,
