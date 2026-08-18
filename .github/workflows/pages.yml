@@ -22,7 +22,7 @@ concurrency:
 
 jobs:
   deploy:
-    name: Deploy public demo + PR225 gate
+    name: Deploy materialized PR225 gate
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -32,62 +32,18 @@ jobs:
       - name: Check out public demo
         uses: actions/checkout@v4
 
-      - name: Materialize verified PR225 gate
+      - name: Verify materialized v7 identity
         shell: bash
         run: |
           set -euo pipefail
-          rm -rf /tmp/pr225-pages-public
-          mkdir -p /tmp/pr225-pages-public
-          curl --fail --location --retry 2 --silent --show-error 'https://sdmntprnortheu.oaiusercontent.com/files/00000000-c29c-81f4-b9c2-65b0c99d2f31/raw?se=2026-08-18T14%3A37%3A47Z&sp=r&sv=2026-02-06&sr=b&scid=1f221654-9796-5d88-9e70-8cc41a2d7103&skoid=a0b9f82a-c86e-4064-a822-2aa38890bb37&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-08-17T21%3A58%3A48Z&ske=2026-08-18T21%3A58%3A48Z&sks=b&skv=2026-02-06&sig=Iq3EnVn/MYk/OQwvHuiwYI%2BW0fnR6ro58hxFHwST/M8%3D' --output /tmp/pr225-pages-public.zip
-          echo 'f52733c83765a1204561363ee185db120ca44627f947bacf23f5c0cd81ef91d0  /tmp/pr225-pages-public.zip' | sha256sum --check --strict
-          unzip -q /tmp/pr225-pages-public.zip -d /tmp/pr225-pages-public
-
-          rm -rf labs quality
-          cp -R /tmp/pr225-pages-public/labs ./labs
-          cp -R /tmp/pr225-pages-public/quality ./quality
-          printf '' > .nojekyll
-
-          node <<'NODE'
-          const fs = require('node:fs');
-          const path = 'labs/renderer-visual-gate/renderer-visual-gate.js';
-          let source = fs.readFileSync(path, 'utf8');
-          const marker = 'const assertSourceResponse = (response, path) => {';
-          if (!source.includes(marker)) throw new Error('visual gate response marker missing');
-          source = source.replace(
-            marker,
-            'const PAGE_BASE = "/Golf-iq";\nconst hostedSourcePath = (path) => `${PAGE_BASE}${path}`;\n\n' + marker,
-          );
-          const responseCheck = 'new URL(response.url).pathname !== path';
-          if (!source.includes(responseCheck)) throw new Error('visual gate response path check missing');
-          source = source.replace(
-            responseCheck,
-            'new URL(response.url).pathname !== hostedSourcePath(path)',
-          );
-          const sourceUrl = 'const url = new URL(path, location.origin);';
-          if (!source.includes(sourceUrl)) throw new Error('visual gate source URL marker missing');
-          source = source.replace(
-            sourceUrl,
-            'const url = new URL(hostedSourcePath(path), location.origin);',
-          );
-          fs.writeFileSync(path, source);
-          NODE
-
           grep -q 'pr225-safari-v7' labs/renderer-visual-gate/renderer-visual-gate-protocol.js
           grep -q '19a4f8e055d53bccec6bc96a33270ec6392aecc1b8bffb820f451b35342b0677' labs/renderer-visual-gate/renderer-visual-gate-protocol.js
           grep -q 'watercourse-edge-and-surface-v5' labs/renderer-visual-gate/renderer-visual-gate-protocol.js
           grep -q 'vertices: 180' labs/renderer-visual-gate/renderer-visual-gate-protocol.js
           grep -q 'triangles: 180' labs/renderer-visual-gate/renderer-visual-gate-protocol.js
           grep -q 'bytes: 6_660' labs/renderer-visual-gate/renderer-visual-gate-protocol.js
+          grep -q '19a4f8e055d53bccec6bc96a33270ec6392aecc1b8bffb820f451b35342b0677' quality/renderer-source-manifest.v1.json
           test -f labs/renderer-evaluation/index.html
-          test -f quality/renderer-source-manifest.v1.json
-
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add labs quality .nojekyll
-          if ! git diff --cached --quiet; then
-            git commit -m 'Materialize PR225 v7 visual gate [skip ci]'
-            git push origin HEAD:main
-          fi
 
       - name: Stage public site
         shell: bash
@@ -112,6 +68,32 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v4
 
+      - name: Verify exact live v7 protocol
+        env:
+          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          LIVE_URL="${PAGE_URL}labs/renderer-visual-gate/renderer-visual-gate-protocol.js"
+          verified=false
+          for attempt in $(seq 1 12); do
+            if curl --fail --location --silent --show-error \
+              "${LIVE_URL}?v=4274a5c-${GITHUB_RUN_ID}-${attempt}" \
+              --output /tmp/pr225-v7-live-protocol.js; then
+              if grep -q 'pr225-safari-v7' /tmp/pr225-v7-live-protocol.js \
+                && grep -q '19a4f8e055d53bccec6bc96a33270ec6392aecc1b8bffb820f451b35342b0677' /tmp/pr225-v7-live-protocol.js \
+                && grep -q 'watercourse-edge-and-surface-v5' /tmp/pr225-v7-live-protocol.js; then
+                verified=true
+                break
+              fi
+            fi
+            sleep 5
+          done
+          test "$verified" = true
+          grep -q 'vertices: 180' /tmp/pr225-v7-live-protocol.js
+          grep -q 'triangles: 180' /tmp/pr225-v7-live-protocol.js
+          grep -q 'bytes: 6_660' /tmp/pr225-v7-live-protocol.js
+
       - name: Record verified live preview
         env:
           PAGE_URL: ${{ steps.deployment.outputs.page_url }}
@@ -126,10 +108,13 @@ jobs:
             "sourceHead": "4274a5c21a1c555d234940599f1630f4844eeb89",
             "artifactSha256": "f52733c83765a1204561363ee185db120ca44627f947bacf23f5c0cd81ef91d0",
             "materializedInPublicRepo": true,
+            "liveProtocolVerified": true,
             "pageUrl": "${PAGE_URL}",
             "visualGateUrl": "${PAGE_URL}labs/renderer-visual-gate/"
           }
           JSON
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add .preview/pr225-live.json
-          git commit -m 'Record materialized PR225 v7 preview [skip ci]'
+          git commit -m 'Record live-verified PR225 v7 preview [skip ci]'
           git push origin HEAD:main
