@@ -5,13 +5,13 @@ import {
 
 export const WEBGL_GROUND_ART_VERSION = "links-ground-v6";
 export const WEBGL_WATERCOURSE_ART_VERSION =
-  "watercourse-edge-and-surface-v4";
-export const WEBGL_WATER_SHORELINE_WIDTH_METERS = 1.18;
-export const WEBGL_WATER_SHORELINE_OUTER_LIFT_METERS = 0.028;
-export const WEBGL_WATER_SHORELINE_INNER_LIFT_METERS = 0.021;
-export const WEBGL_WATER_SURFACE_RENDER_LIFT_METERS = 0.018;
-export const WEBGL_WATERCOURSE_MIN_RIBBON_STATIONS = 20;
-export const WEBGL_WATERCOURSE_MAX_RIBBON_STATIONS = 24;
+  "watercourse-edge-and-surface-v5";
+export const WEBGL_WATER_SHORELINE_WIDTH_METERS = 1.35;
+export const WEBGL_WATER_SHORELINE_OUTER_LIFT_METERS = 0.09;
+export const WEBGL_WATER_SHORELINE_INNER_LIFT_METERS = 0.06;
+export const WEBGL_WATER_SURFACE_RENDER_LIFT_METERS = 0.052;
+export const WEBGL_WATERCOURSE_MIN_RIBBON_STATIONS = 44;
+export const WEBGL_WATERCOURSE_MAX_RIBBON_STATIONS = 48;
 export const WEBGL_WATER_SHORELINE_MAX_VERTICES = 192;
 export const WEBGL_WATER_SHORELINE_MAX_TRIANGLES = 192;
 export const WEBGL_WATER_SHORELINE_MAX_BYTES = 7_104;
@@ -192,7 +192,7 @@ const buildWatercourseRibbon = (authored, groupIndex) => {
   const primaryMaximum = primaryAxis === "z" ? maximumZ : maximumX;
   const primarySpan = primaryMaximum - primaryMinimum;
   const stationCount = clamp(
-    Math.round(primarySpan / 6),
+    Math.round(primarySpan / 3),
     WEBGL_WATERCOURSE_MIN_RIBBON_STATIONS,
     WEBGL_WATERCOURSE_MAX_RIBBON_STATIONS,
   );
@@ -216,38 +216,33 @@ const buildWatercourseRibbon = (authored, groupIndex) => {
     throw new RangeError("watercourse ribbon has insufficient interior cross-sections");
   }
   const buildCandidate = (amplitudeScale) => {
-    const left = [];
-    const right = [];
-    for (const section of sections) {
+    const proposals = sections.map((section) => {
       const broad = waterEdgeNoise(
-        section.primary * 0.018 + groupIndex * 11.3,
-        section.primary * 0.006 - groupIndex * 7.1,
+        section.primary * 0.014 + groupIndex * 11.3,
+        section.primary * 0.005 - groupIndex * 7.1,
       );
       const detail = waterEdgeNoise(
-        section.primary * 0.041 + 17.7 + groupIndex * 5.2,
-        section.primary * 0.014 - 9.3 - groupIndex * 3.4,
+        section.primary * 0.033 + 17.7 + groupIndex * 5.2,
+        section.primary * 0.011 - 9.3 - groupIndex * 3.4,
       );
       const widthNoise = waterEdgeNoise(
-        section.primary * 0.026 - 8.4,
-        section.primary * 0.009 + 4.2 + groupIndex * 2.7,
+        section.primary * 0.022 - 8.4,
+        section.primary * 0.008 + 4.2 + groupIndex * 2.7,
       );
       const maximumOffset = Math.min(
-        1.65,
-        section.authoredHalfWidth * 0.26,
+        1.35,
+        section.authoredHalfWidth * 0.22,
       );
       const offset = clamp(
-        (broad * 1.08 + detail * 0.36) * maximumOffset * amplitudeScale,
+        (broad * 0.96 + detail * 0.24) *
+          maximumOffset * amplitudeScale,
         -maximumOffset,
         maximumOffset,
       );
-      const maximumHalfWidth = Math.max(
-        0.7,
-        section.authoredHalfWidth - Math.abs(offset) - 0.48,
-      );
       const desiredHalfWidth = clamp(
-        section.authoredHalfWidth * (0.57 + widthNoise * 0.075),
-        1.7,
-        3.35,
+        section.authoredHalfWidth * (0.50 + widthNoise * 0.045),
+        1.40,
+        2.80,
       );
       const capProgress = clamp(
         Math.min(section.progress, 1 - section.progress) / 0.095,
@@ -255,9 +250,42 @@ const buildWatercourseRibbon = (authored, groupIndex) => {
         1,
       );
       const capBlend = capProgress * capProgress * (3 - 2 * capProgress);
-      const halfWidth = Math.min(maximumHalfWidth, desiredHalfWidth) *
-        (0.42 + capBlend * 0.58);
-      const center = section.authoredCenter + offset;
+      return Object.freeze({
+        center: section.authoredCenter + offset,
+        halfWidth: desiredHalfWidth * (0.42 + capBlend * 0.58),
+      });
+    });
+    const smoothProposal = (index, property) => {
+      const weights = [1, 2, 3, 2, 1];
+      let total = 0;
+      let weightTotal = 0;
+      for (let offset = -2; offset <= 2; offset += 1) {
+        const candidate = clamp(index + offset, 0, proposals.length - 1);
+        const weight = weights[offset + 2];
+        total += proposals[candidate][property] * weight;
+        weightTotal += weight;
+      }
+      return total / weightTotal;
+    };
+    const left = [];
+    const right = [];
+    for (let index = 0; index < sections.length; index += 1) {
+      const section = sections[index];
+      let halfWidth = smoothProposal(index, "halfWidth");
+      const maximumHalfWidth = Math.max(
+        0.58,
+        section.authoredHalfWidth - 0.46,
+      );
+      halfWidth = Math.min(maximumHalfWidth, halfWidth);
+      const maximumCenterOffset = Math.max(
+        0,
+        section.authoredHalfWidth - halfWidth - 0.42,
+      );
+      const center = clamp(
+        smoothProposal(index, "center"),
+        section.authoredCenter - maximumCenterOffset,
+        section.authoredCenter + maximumCenterOffset,
+      );
       const first = primaryAxis === "z"
         ? Object.freeze({ x: center - halfWidth, z: section.primary })
         : Object.freeze({ x: section.primary, z: center - halfWidth });
@@ -1162,6 +1190,76 @@ export function createWebglTerrainGeometry(world, {
     waterShorelineTriangleCount += addedTriangles;
     surfaceTriangleCount += addedTriangles;
   };
+  const appendWaterRibbonSurface = (points, surfaceIndex) => {
+    if (points.length % 2 !== 0 || points.length < 8) {
+      throw new RangeError("watercourse ribbon requires paired banks");
+    }
+    const stationCount = points.length / 2;
+    const left = points.slice(0, stationCount);
+    const right = [...points.slice(stationCount)].reverse();
+    const waterLevel =
+      world.waterLevels?.[surfaceIndex] ?? world.waterLevel;
+    const firstVertex = positions.length / 3;
+    for (let index = 0; index < stationCount; index += 1) {
+      for (const point of [left[index], right[index]]) {
+        positions.push(
+          point.x,
+          waterLevel + WEBGL_WATER_SURFACE_RENDER_LIFT_METERS,
+          point.z,
+        );
+        normals.push(0, 1, 0);
+        materials.push(WEBGL_SURFACE_MATERIAL_IDS.water);
+        materialCounts.water += 1;
+      }
+    }
+    const appendClockwiseWaterTriangle = (
+      firstIndex,
+      secondIndex,
+      thirdIndex,
+      firstPoint,
+      secondPoint,
+      thirdPoint,
+    ) => {
+      const winding = polygonCross(firstPoint, secondPoint, thirdPoint);
+      if (Math.abs(winding) <= 1e-7) {
+        throw new RangeError("watercourse ribbon triangle is degenerate");
+      }
+      if (winding < 0) {
+        indices.push(firstIndex, secondIndex, thirdIndex);
+      } else {
+        indices.push(firstIndex, thirdIndex, secondIndex);
+      }
+    };
+    for (let index = 0; index < stationCount - 1; index += 1) {
+      const leftCurrent = left[index];
+      const rightCurrent = right[index];
+      const leftNext = left[index + 1];
+      const rightNext = right[index + 1];
+      const currentLeftIndex = firstVertex + index * 2;
+      const currentRightIndex = currentLeftIndex + 1;
+      const nextLeftIndex = currentLeftIndex + 2;
+      const nextRightIndex = currentLeftIndex + 3;
+      appendClockwiseWaterTriangle(
+        currentLeftIndex,
+        nextLeftIndex,
+        currentRightIndex,
+        leftCurrent,
+        leftNext,
+        rightCurrent,
+      );
+      appendClockwiseWaterTriangle(
+        currentRightIndex,
+        nextLeftIndex,
+        nextRightIndex,
+        rightCurrent,
+        leftNext,
+        rightNext,
+      );
+    }
+    const addedTriangles = (stationCount - 1) * 2;
+    surfaceTriangleCount += addedTriangles;
+  };
+
   const appendSurfaceBatch = (material, surfaceGroups, options = {}) => {
     const { afterSurface, ...surfaceOptions } = options;
     const firstIndex = indices.length;
@@ -1233,10 +1331,21 @@ export function createWebglTerrainGeometry(world, {
       triangleCount: bunkerBatchIndexCount / 3,
     }));
   }
-  appendSurfaceBatch("water", waterSurfaceGroupsFor(world), {
-    includeBunkerTriangles: true,
-    afterSurface: appendWaterShoreline,
-  });
+  const firstWaterBatchIndex = indices.length;
+  for (let index = 0; index < waterSurfaceGroupsFor(world).length; index += 1) {
+    const points = waterSurfaceGroupsFor(world)[index];
+    appendWaterRibbonSurface(points, index);
+    appendWaterShoreline(points, index);
+  }
+  const waterBatchIndexCount = indices.length - firstWaterBatchIndex;
+  if (waterBatchIndexCount > 0) {
+    surfaceBatches.push(Object.freeze({
+      material: "water",
+      firstIndex: firstWaterBatchIndex,
+      indexCount: waterBatchIndexCount,
+      triangleCount: waterBatchIndexCount / 3,
+    }));
+  }
   const bunkerPatches = Object.freeze(patchRuntime.map(({ metadata }) =>
     Object.freeze({
       ...metadata,

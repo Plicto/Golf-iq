@@ -609,7 +609,7 @@ export function createWebglCourseRenderer(canvas, {
       vec3 wetBank = mix(
         uRough[2],
         uSand[1],
-        clamp(.34 + shorelineNoise * .08, 0., 1.)
+        clamp(.46 + shorelineNoise * .10, 0., 1.)
       );
       vec3 edgeWater = mix(
         wetBank,
@@ -618,9 +618,9 @@ export function createWebglCourseRenderer(canvas, {
           uWater[0],
           clamp(.43 + motion * .025, 0., 1.)
         ),
-        .24
+        .12
       );
-      return mix(edgeWater, wetBank, .66);
+      return mix(edgeWater, wetBank, .78);
     }
 
     void main() {
