@@ -4,6 +4,11 @@ on:
   push:
     branches:
       - main
+    paths-ignore:
+      - "labs/**"
+      - "quality/**"
+      - ".nojekyll"
+      - ".preview/**"
   workflow_dispatch:
 
 permissions:
@@ -22,23 +27,29 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 8
     steps:
       - name: Check out public demo
         uses: actions/checkout@v4
-      - name: Stage existing demo plus PR225 gate
+
+      - name: Materialize verified PR225 gate
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p _site
-          cp index.html _site/index.html
-          printf '' > _site/.nojekyll
-          curl --fail --location --retry 2 --silent --show-error 'https://sdmntpritalynorth.oaiusercontent.com/files/00000000-9964-8246-ac51-46a1ed4da1c5/raw?se=2026-08-18T07%3A56%3A09Z&sp=r&sv=2026-02-06&sr=b&scid=ad7d153b-8dbd-530b-90a4-cead540fbfaa&skoid=a0b9f82a-c86e-4064-a822-2aa38890bb37&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-08-18T04%3A47%3A59Z&ske=2026-08-19T04%3A47%3A59Z&sks=b&skv=2026-02-06&sig=AOGl26EFcZC4u0RIa3bJpiGTkW3DsTKKPGQml7SJd7Y%3D' --output /tmp/pr225-pages-public.zip
+          rm -rf /tmp/pr225-pages-public
+          mkdir -p /tmp/pr225-pages-public
+          curl --fail --location --retry 2 --silent --show-error 'https://sdmntpritalynorth.oaiusercontent.com/files/00000000-fd84-8246-9d22-aa08b0d4bee3/raw?se=2026-08-18T08%3A27%3A47Z&sp=r&sv=2026-02-06&sr=b&scid=e507a334-02d5-5314-8933-58b83b969f21&skoid=a0b9f82a-c86e-4064-a822-2aa38890bb37&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-08-18T05%3A14%3A15Z&ske=2026-08-19T05%3A14%3A15Z&sks=b&skv=2026-02-06&sig=oMfIKnSa50363htlHLy/LgAZSabmbY208NbH33jnlcM%3D' --output /tmp/pr225-pages-public.zip
           echo 'f5ceccc06a2e401fa595a7926f5a934faf730a96dc0ede6188feb4e4b0b9d2ab  /tmp/pr225-pages-public.zip' | sha256sum --check --strict
-          unzip -q /tmp/pr225-pages-public.zip -d _site
+          unzip -q /tmp/pr225-pages-public.zip -d /tmp/pr225-pages-public
+
+          rm -rf labs quality
+          cp -R /tmp/pr225-pages-public/labs ./labs
+          cp -R /tmp/pr225-pages-public/quality ./quality
+          printf '' > .nojekyll
+
           node <<'NODE'
           const fs = require('node:fs');
-          const path = '_site/labs/renderer-visual-gate/renderer-visual-gate.js';
+          const path = 'labs/renderer-visual-gate/renderer-visual-gate.js';
           let source = fs.readFileSync(path, 'utf8');
           const marker = 'const assertSourceResponse = (response, path) => {';
           if (!source.includes(marker)) throw new Error('visual gate response marker missing');
@@ -60,17 +71,43 @@ jobs:
           );
           fs.writeFileSync(path, source);
           NODE
-          grep -q 'pr225-safari-v3' _site/labs/renderer-visual-gate/renderer-visual-gate-protocol.js
-          grep -q 'f4f4e5f6d18f22dd4657f7df411faf3ea29f63606e24fed0a5403a8bb2c21afe' _site/labs/renderer-visual-gate/renderer-visual-gate-protocol.js
+
+          grep -q 'pr225-safari-v3' labs/renderer-visual-gate/renderer-visual-gate-protocol.js
+          grep -q 'f4f4e5f6d18f22dd4657f7df411faf3ea29f63606e24fed0a5403a8bb2c21afe' labs/renderer-visual-gate/renderer-visual-gate-protocol.js
+          test -f labs/renderer-evaluation/index.html
+          test -f quality/renderer-source-manifest.v1.json
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add labs quality .nojekyll
+          if ! git diff --cached --quiet; then
+            git commit -m 'Materialize PR225 visual gate'
+            git push origin HEAD:main
+          fi
+
+      - name: Stage public site
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf _site
+          mkdir -p _site
+          cp index.html _site/index.html
+          cp .nojekyll _site/.nojekyll
+          cp -R labs _site/labs
+          cp -R quality _site/quality
+
       - name: Configure Pages
         uses: actions/configure-pages@v5
+
       - name: Upload staged site
         uses: actions/upload-pages-artifact@v4
         with:
           path: _site
+
       - name: Deploy Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
       - name: Record verified live preview
         env:
           PAGE_URL: ${{ steps.deployment.outputs.page_url }}
@@ -84,13 +121,12 @@ jobs:
             "rendererSourceFingerprint": "f4f4e5f6d18f22dd4657f7df411faf3ea29f63606e24fed0a5403a8bb2c21afe",
             "sourceHead": "4cb00faa423f900a471568d217260322f392c53f",
             "artifactSha256": "f5ceccc06a2e401fa595a7926f5a934faf730a96dc0ede6188feb4e4b0b9d2ab",
+            "materializedInPublicRepo": true,
             "deploymentCommit": "${GITHUB_SHA}",
             "pageUrl": "${PAGE_URL}",
             "visualGateUrl": "${PAGE_URL}labs/renderer-visual-gate/"
           }
           JSON
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add .preview/pr225-live.json
-          git commit -m 'Record PR225 preview deployment [skip ci]'
+          git commit -m 'Record materialized PR225 preview [skip ci]'
           git push origin HEAD:main
