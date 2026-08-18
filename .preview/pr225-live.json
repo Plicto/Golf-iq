@@ -1,9 +1,10 @@
 {
-  "gateVersion": "pr225-safari-v6",
-  "rendererSourceFingerprint": "3f835a55b470e3bbcd6d83a3b1bca33cd4ed3b3bda4298ea44bfa47718a54ce8",
-  "sourceHead": "98cc64c3a89ffa51fff765341df2c6f8e5eff190",
-  "artifactSha256": "e37658c28ba4833e9851b337810502bd482075e81cb1b648b0b60041073d9daa",
+  "gateVersion": "pr225-safari-v7",
+  "rendererSourceFingerprint": "19a4f8e055d53bccec6bc96a33270ec6392aecc1b8bffb820f451b35342b0677",
+  "sourceHead": "4274a5c21a1c555d234940599f1630f4844eeb89",
+  "artifactSha256": "f52733c83765a1204561363ee185db120ca44627f947bacf23f5c0cd81ef91d0",
   "materializedInPublicRepo": true,
+  "liveProtocolVerified": true,
   "pageUrl": "https://plicto.github.io/Golf-iq/",
   "visualGateUrl": "https://plicto.github.io/Golf-iq/labs/renderer-visual-gate/"
 }
