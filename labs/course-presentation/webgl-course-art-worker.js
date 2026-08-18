@@ -8,7 +8,7 @@ import {
 import {
   createVisualWatercourseWorld,
   replaceVisualWatercourseGeometry,
-} from "./webgl-watercourse-visual-v9.js";
+} from "./webgl-watercourse-visual-v10.js";
 
 const assertRequest = (message) => {
   const identity = message?.identity;
