@@ -50,6 +50,7 @@
     "/labs/course-presentation/webgl-course-renderer.js",
     "/labs/course-presentation/webgl-rough-vegetation.js",
     "/labs/course-presentation/webgl-terrain-materials.js",
+    "/labs/course-presentation/webgl-watercourse-visual-v8.js",
     "/labs/renderer-device-gate/renderer-device-gate-protocol.js",
     "/labs/renderer-device-gate/renderer-device-gate.css",
     "/labs/renderer-device-gate/renderer-device-gate.js",
@@ -57,5 +58,5 @@
     "/labs/renderer-evaluation/renderer-evaluation.js",
     "/quality/render-budgets.v1.json"
   ],
-  "digest": "19a4f8e055d53bccec6bc96a33270ec6392aecc1b8bffb820f451b35342b0677"
+  "digest": "2112df9e80e0bcecb3cf177f424ea1ee2dbc5b804d150e03bcb44e92001fe45e"
 }

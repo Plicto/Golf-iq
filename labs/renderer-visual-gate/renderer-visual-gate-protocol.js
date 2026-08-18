@@ -2,19 +2,19 @@ import { RENDERER_SCENARIO_IDS } from
   "../course-presentation/renderer-scenarios.js";
 
 export const VISUAL_GATE_SCHEMA_VERSION = 1;
-export const VISUAL_GATE_VERSION = "pr225-safari-v7";
+export const VISUAL_GATE_VERSION = "pr225-safari-v8";
 export const VISUAL_GATE_BACKEND = "webgl2-hybrid";
 export const VISUAL_GATE_SCENARIOS = RENDERER_SCENARIO_IDS;
 export const VISUAL_GATE_GROUND_ART_VERSION = "links-ground-v6";
 export const VISUAL_GATE_WATERCOURSE_ART_VERSION =
   "watercourse-edge-and-surface-v5";
 export const VISUAL_GATE_SHORELINE = Object.freeze({
-  vertices: 180,
-  triangles: 180,
-  bytes: 6_660,
+  vertices: 176,
+  triangles: 176,
+  bytes: 6_512,
 });
 export const VISUAL_GATE_RENDERER_FINGERPRINT =
-  "19a4f8e055d53bccec6bc96a33270ec6392aecc1b8bffb820f451b35342b0677";
+  "2112df9e80e0bcecb3cf177f424ea1ee2dbc5b804d150e03bcb44e92001fe45e";
 export const VISUAL_GATE_VIEWPORT = Object.freeze({
   cssWidth: 390,
   cssHeight: 844,
