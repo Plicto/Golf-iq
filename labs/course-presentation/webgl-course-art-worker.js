@@ -8,7 +8,7 @@ import {
 import {
   createVisualWatercourseWorld,
   replaceVisualWatercourseGeometry,
-} from "./webgl-watercourse-visual-v8.js";
+} from "./webgl-watercourse-visual-v9.js";
 
 const assertRequest = (message) => {
   const identity = message?.identity;
@@ -28,20 +28,6 @@ const assertRequest = (message) => {
   return identity;
 };
 
-const withFrozenArrayReverseCompatibility = (work) => {
-  const originalReverse = Array.prototype.reverse;
-  Array.prototype.reverse = function reverse() {
-    return Object.isFrozen(this)
-      ? originalReverse.call(Array.from(this))
-      : originalReverse.call(this);
-  };
-  try {
-    return work();
-  } finally {
-    Array.prototype.reverse = originalReverse;
-  }
-};
-
 self.addEventListener("message", async (event) => {
   const requestId = event.data?.requestId;
   try {
@@ -49,11 +35,9 @@ self.addEventListener("message", async (event) => {
     const { world } = await loadRecoveryHoleArtSource(identity);
     const visualWorld = createVisualWatercourseWorld(world);
     const startedAt = performance.now();
-    const terrainGeometry = withFrozenArrayReverseCompatibility(() =>
-      replaceVisualWatercourseGeometry(
-        createWebglTerrainGeometry(visualWorld),
-        visualWorld,
-      )
+    const terrainGeometry = replaceVisualWatercourseGeometry(
+      createWebglTerrainGeometry(visualWorld),
+      visualWorld,
     );
     const vegetationInstances = createRoughVegetationInstances(visualWorld, {
       terrainGeometry,
@@ -83,7 +67,7 @@ self.addEventListener("message", async (event) => {
       identity: event.data?.identity ?? null,
       code: "WEBGL_ART_PREPARATION_FAILED",
       message: cause instanceof Error
-        ? cause.message
+        ? cause.stack ?? cause.message
         : "WebGL course art preparation failed",
     });
   }
