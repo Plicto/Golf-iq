@@ -1,30 +1,27 @@
 import {
-  WEBGL_TERRAIN_COLUMNS,
-  WEBGL_TERRAIN_ROWS,
   WEBGL_WATER_SURFACE_RENDER_LIFT_METERS,
   pointInCoursePolygon,
   waterSurfaceGroupsFor,
 } from "./webgl-terrain-materials.js";
 
-export const WEBGL_VISUAL_WATERCOURSE_VERSION = "authored-spline-v2";
+export const WEBGL_VISUAL_WATERCOURSE_VERSION = "authored-spline-v3";
 
-const WATER_BANK_DEPTH_CLEARANCE_METERS = 0.015;
-const WATER_BANK_OUTER_RISE_PER_METER = 0.45;
-const WATER_BANK_MAX_INFLUENCE_METERS = 14;
+const WATER_BANK_OUTER_RISE_PER_METER = 0.008;
+const WATER_BANK_MAX_INFLUENCE_METERS = 6;
 
 const CONTROLS = Object.freeze({
   "north-inlet": Object.freeze({ axis: "z", points: Object.freeze([
-    [138, 26.7, .95], [148, 28.1, 1.45], [160, 31.0, 1.90],
-    [172, 33.0, 2.15], [184, 32.2, 2.00], [196, 29.6, 1.70],
-    [208, 30.0, 1.55], [220, 35.5, 2.00], [232, 39.1, 2.25],
-    [244, 38.7, 2.05], [256, 35.7, 1.80], [266, 32.9, 1.15],
-    [268, 32.5, .80],
+    [138, 27.2, 1.15], [148, 28.2, 1.50], [160, 30.1, 1.85],
+    [172, 31.8, 2.05], [184, 31.4, 2.00], [196, 30.4, 1.85],
+    [208, 31.2, 1.75], [220, 33.5, 2.00], [232, 35.4, 2.15],
+    [244, 35.7, 2.05], [256, 34.5, 1.85], [266, 33.1, 1.25],
+    [268, 32.8, .75],
   ]) }),
   "gannet-shelf": Object.freeze({ axis: "x", points: Object.freeze([
-    [-84, 75.5, 1.20], [-70, 77.0, 1.65], [-55, 79.2, 2.05],
-    [-38, 81.4, 1.85], [-20, 83.2, 2.20], [0, 85.0, 1.95],
-    [18, 83.7, 1.75], [36, 83.6, 2.10], [54, 86.0, 1.90],
-    [70, 89.0, 1.60], [84, 91.0, 1.10],
+    [-84, 75.8, 1.15], [-70, 77.0, 1.55], [-55, 79.0, 1.90],
+    [-38, 81.0, 1.90], [-20, 82.8, 2.05], [0, 84.4, 1.95],
+    [18, 84.1, 1.80], [36, 84.3, 1.95], [54, 86.0, 1.85],
+    [70, 88.4, 1.55], [84, 90.2, 1.05],
   ]) }),
 });
 
@@ -88,12 +85,12 @@ const buildVisualGroup = (world, gameplay) => {
   const lastPrimary = controls.at(-1)[0];
   const left = [];
   const right = [];
-  for (let index = 0; index < 48; index += 1) {
-    const primary = firstPrimary + (lastPrimary - firstPrimary) * index / 47;
+  for (let index = 0; index < 72; index += 1) {
+    const primary = firstPrimary + (lastPrimary - firstPrimary) * index / 71;
     const section = sectionAt(gameplay, axis, primary);
     if (!section) throw new RangeError("visual watercourse leaves gameplay hazard");
-    const maxHalf = Math.max(.62, (section.maximum - section.minimum) * .5 - .42);
-    const half = clamp(controlValue(controls, primary, "half"), .62, maxHalf);
+    const maxHalf = Math.max(.55, (section.maximum - section.minimum) * .5 - .42);
+    const half = clamp(controlValue(controls, primary, "half"), .55, maxHalf);
     const minimum = section.minimum + half + .34;
     const maximum = section.maximum - half - .34;
     const requested = controlValue(controls, primary, "center");
@@ -132,33 +129,22 @@ const pointSegmentDistance = (point, start, end) => {
   );
 };
 
-const bankProfileFor = (world, points, waterSurfaceIndex) => {
-  const gridDiagonal = Math.hypot(
-    (world.bounds.maximumX - world.bounds.minimumX) / WEBGL_TERRAIN_COLUMNS,
-    (world.bounds.maximumZ - world.bounds.minimumZ) / WEBGL_TERRAIN_ROWS,
-  );
-  const innerLift = Math.max(
-    0,
-    WEBGL_WATER_SURFACE_RENDER_LIFT_METERS -
-      WATER_BANK_DEPTH_CLEARANCE_METERS,
-  );
-  return Object.freeze({
-    points,
-    waterLevel: world.waterLevels?.[waterSurfaceIndex] ?? world.waterLevel,
-    gridDiagonal,
-    innerScale: innerLift / (gridDiagonal * gridDiagonal),
-    bounds: Object.freeze({
-      minimumX: Math.min(...points.map(({ x }) => x)) -
-        WATER_BANK_MAX_INFLUENCE_METERS,
-      maximumX: Math.max(...points.map(({ x }) => x)) +
-        WATER_BANK_MAX_INFLUENCE_METERS,
-      minimumZ: Math.min(...points.map(({ z }) => z)) -
-        WATER_BANK_MAX_INFLUENCE_METERS,
-      maximumZ: Math.max(...points.map(({ z }) => z)) +
-        WATER_BANK_MAX_INFLUENCE_METERS,
-    }),
-  });
-};
+const bankProfileFor = (world, points, waterSurfaceIndex) => Object.freeze({
+  points,
+  waterSurfaceHeight:
+    (world.waterLevels?.[waterSurfaceIndex] ?? world.waterLevel) +
+    WEBGL_WATER_SURFACE_RENDER_LIFT_METERS,
+  bounds: Object.freeze({
+    minimumX: Math.min(...points.map(({ x }) => x)) -
+      WATER_BANK_MAX_INFLUENCE_METERS,
+    maximumX: Math.max(...points.map(({ x }) => x)) +
+      WATER_BANK_MAX_INFLUENCE_METERS,
+    minimumZ: Math.min(...points.map(({ z }) => z)) -
+      WATER_BANK_MAX_INFLUENCE_METERS,
+    maximumZ: Math.max(...points.map(({ z }) => z)) +
+      WATER_BANK_MAX_INFLUENCE_METERS,
+  }),
+});
 
 const distanceToBankProfile = (profile, point) => {
   if (
@@ -183,23 +169,18 @@ const distanceToBankProfile = (profile, point) => {
   return distance;
 };
 
-const bankCeilingAt = (profile, distance) => {
-  if (distance <= profile.gridDiagonal) {
-    return profile.waterLevel + profile.innerScale * distance * distance;
-  }
-  return profile.waterLevel +
-    profile.innerScale * profile.gridDiagonal * profile.gridDiagonal +
-    (distance - profile.gridDiagonal) * WATER_BANK_OUTER_RISE_PER_METER;
-};
-
 const visualSurfaceElevationFor = (world, profiles) => (x, z) => {
   const original = world.surfaceElevationAt(x, z);
   const point = { x, z };
   let ceiling = Number.POSITIVE_INFINITY;
   for (const profile of profiles) {
+    if (pointInCoursePolygon(profile.points, point)) continue;
     const distance = distanceToBankProfile(profile, point);
     if (distance > WATER_BANK_MAX_INFLUENCE_METERS) continue;
-    ceiling = Math.min(ceiling, bankCeilingAt(profile, distance));
+    ceiling = Math.min(
+      ceiling,
+      profile.waterSurfaceHeight + distance * WATER_BANK_OUTER_RISE_PER_METER,
+    );
   }
   return Math.min(original, ceiling);
 };
