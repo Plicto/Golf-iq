@@ -1,8 +1,9 @@
 {
-  "gateVersion": "pr225-safari-v7",
-  "rendererSourceFingerprint": "19a4f8e055d53bccec6bc96a33270ec6392aecc1b8bffb820f451b35342b0677",
-  "sourceHead": "4274a5c21a1c555d234940599f1630f4844eeb89",
-  "artifactSha256": "f52733c83765a1204561363ee185db120ca44627f947bacf23f5c0cd81ef91d0",
+  "gateVersion": "pr225-safari-v8",
+  "rendererSourceFingerprint": "2112df9e80e0bcecb3cf177f424ea1ee2dbc5b804d150e03bcb44e92001fe45e",
+  "sourceHead": "80441bb2ab91936161cc29c2090f6f70117450ca",
+  "materializedPublicHead": "9997be31303440d83ee72bcdb50526ad423b52ab",
+  "artifactSha256": "29b14a0cd1a2dcbc57af4296a7e1ef4e885798924199192d213fbfaaa2d4dabe",
   "materializedInPublicRepo": true,
   "liveProtocolVerified": true,
   "pageUrl": "https://plicto.github.io/Golf-iq/",
