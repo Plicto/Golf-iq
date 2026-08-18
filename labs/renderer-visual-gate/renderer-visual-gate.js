@@ -80,7 +80,9 @@ const sourceResponseType = (path) => {
   return null;
 };
 
-const PAGE_BASE = "/Golf-iq";
+const PAGE_BASE = location.pathname.match(
+  /^(.*)\/labs\/renderer-visual-gate(?:\/|$)/,
+)?.[1] || "/Golf-iq";
 const hostedSourcePath = (path) => `${PAGE_BASE}${path}`;
 
 const assertSourceResponse = (response, path) => {
