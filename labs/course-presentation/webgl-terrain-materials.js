@@ -5,10 +5,11 @@ import {
 
 export const WEBGL_GROUND_ART_VERSION = "links-ground-v6";
 export const WEBGL_WATERCOURSE_ART_VERSION =
-  "watercourse-edge-and-surface-v2";
-export const WEBGL_WATER_SHORELINE_WIDTH_METERS = 0.82;
-export const WEBGL_WATER_SHORELINE_OUTER_LIFT_METERS = 0.019;
-export const WEBGL_WATER_SHORELINE_INNER_LIFT_METERS = 0.015;
+  "watercourse-edge-and-surface-v3";
+export const WEBGL_WATER_SHORELINE_WIDTH_METERS = 1.35;
+export const WEBGL_WATER_SHORELINE_OUTER_LIFT_METERS = 0.028;
+export const WEBGL_WATER_SHORELINE_INNER_LIFT_METERS = 0.021;
+export const WEBGL_WATER_SURFACE_RENDER_LIFT_METERS = 0.006;
 export const WEBGL_WATERCOURSE_SMOOTHING_PASSES = 2;
 export const WEBGL_WATER_SHORELINE_MAX_VERTICES = 192;
 export const WEBGL_WATER_SHORELINE_MAX_TRIANGLES = 192;
@@ -109,6 +110,28 @@ const interpolateWaterPoint = (from, to, amount) => {
   return Object.freeze(point);
 };
 
+const waterEdgeHash = (cellX, cellZ) => {
+  let value = Math.imul(cellX | 0, 374761393) ^
+    Math.imul(cellZ | 0, 668265263);
+  value = Math.imul(value ^ (value >>> 13), 1274126177);
+  value ^= value >>> 16;
+  return ((value >>> 0) / 4294967295) * 2 - 1;
+};
+
+const waterEdgeNoise = (x, z) => {
+  const cellX = Math.floor(x);
+  const cellZ = Math.floor(z);
+  const localX = x - cellX;
+  const localZ = z - cellZ;
+  const blendX = localX * localX * (3 - 2 * localX);
+  const blendZ = localZ * localZ * (3 - 2 * localZ);
+  const lower = waterEdgeHash(cellX, cellZ) * (1 - blendX) +
+    waterEdgeHash(cellX + 1, cellZ) * blendX;
+  const upper = waterEdgeHash(cellX, cellZ + 1) * (1 - blendX) +
+    waterEdgeHash(cellX + 1, cellZ + 1) * blendX;
+  return lower * (1 - blendZ) + upper * blendZ;
+};
+
 const smoothWaterSurfaceGroup = (points) => {
   let smoothed = [...points];
   for (let pass = 0; pass < WEBGL_WATERCOURSE_SMOOTHING_PASSES; pass += 1) {
@@ -127,7 +150,49 @@ const smoothWaterSurfaceGroup = (points) => {
     }
     smoothed = next;
   }
-  return Object.freeze(smoothed);
+  return smoothed;
+};
+
+const naturalizeWaterSurfaceGroup = (points) => {
+  const orientation = polygonSignedArea(points) >= 0 ? 1 : -1;
+  const buildNaturalized = (scale) => points.map((point, index) => {
+    const prior = points[(index + points.length - 1) % points.length];
+    const next = points[(index + 1) % points.length];
+    const tangentX = next.x - prior.x;
+    const tangentZ = next.z - prior.z;
+    const tangentLength = Math.hypot(tangentX, tangentZ);
+    if (tangentLength <= 1e-8) return point;
+    const unitX = tangentX / tangentLength;
+    const unitZ = tangentZ / tangentLength;
+    const inwardX = orientation > 0 ? -unitZ : unitZ;
+    const inwardZ = orientation > 0 ? unitX : -unitX;
+    const broad = waterEdgeNoise(point.x * 0.035, point.z * 0.035);
+    const detail = waterEdgeNoise(
+      point.x * 0.071 + 17.3,
+      point.z * 0.071 - 9.4,
+    );
+    let distance = clamp(1.45 + broad * 0.5 + detail * 0.2, 0.75, 2.15) * scale;
+    for (let attempt = 0; attempt < 8; attempt += 1) {
+      const candidate = Object.freeze({
+        x: point.x + inwardX * distance,
+        z: point.z + inwardZ * distance,
+        ...(Number.isFinite(point.y) ? { y: point.y } : {}),
+      });
+      if (pointInCoursePolygon(points, candidate)) return candidate;
+      distance *= 0.5;
+    }
+    return point;
+  });
+  for (const scale of [1, 0.72, 0.5, 0.35, 0.24]) {
+    const candidate = buildNaturalized(scale);
+    try {
+      triangulateCourseSurface(candidate);
+      return Object.freeze(candidate);
+    } catch {
+      // Reduce the complete contour amplitude deterministically.
+    }
+  }
+  return Object.freeze(points);
 };
 
 export const waterSurfaceGroupsFor = (world) => {
@@ -136,11 +201,11 @@ export const waterSurfaceGroupsFor = (world) => {
   const authored = world.waterSurfaceGroups ?? (
     world.waterSurfacePoints.length < 3 ? [] : [world.waterSurfacePoints]
   );
-  const smoothed = Object.freeze(authored.map((points) =>
-    smoothWaterSurfaceGroup(points)
+  const naturalized = Object.freeze(authored.map((points) =>
+    naturalizeWaterSurfaceGroup(smoothWaterSurfaceGroup(points))
   ));
-  WATER_SURFACE_GROUP_CACHE.set(world, smoothed);
-  return smoothed;
+  WATER_SURFACE_GROUP_CACHE.set(world, naturalized);
+  return naturalized;
 };
 
 export function pointInCourseTee(world, point, padding = 0) {
@@ -817,7 +882,8 @@ export function createWebglTerrainGeometry(world, {
       if (surfaceIndices.length === 0) return;
       const firstVertex = positions.length / 3;
       for (const point of surfacePoints) {
-        const y = triangleHeightAt(baseTriangle, point);
+        const y = triangleHeightAt(baseTriangle, point) +
+          (material === "water" ? WEBGL_WATER_SURFACE_RENDER_LIFT_METERS : 0);
         const normal = material === "water"
           ? { x: 0, y: 1, z: 0 }
           : courseSurfaceNormalAt(world, point);
@@ -945,15 +1011,41 @@ export function createWebglTerrainGeometry(world, {
       materialCounts.waterShoreline += 1;
     }
     const innerOffset = shoreline.outer.length;
+    const appendClockwiseShorelineTriangle = (
+      firstIndex,
+      secondIndex,
+      thirdIndex,
+      firstPoint,
+      secondPoint,
+      thirdPoint,
+    ) => {
+      const winding = polygonCross(firstPoint, secondPoint, thirdPoint);
+      if (Math.abs(winding) <= 1e-7) {
+        throw new RangeError("water shoreline triangle is degenerate");
+      }
+      if (winding < 0) {
+        indices.push(firstIndex, secondIndex, thirdIndex);
+      } else {
+        indices.push(firstIndex, thirdIndex, secondIndex);
+      }
+    };
     for (let index = 0; index < shoreline.outer.length; index += 1) {
       const next = (index + 1) % shoreline.outer.length;
-      indices.push(
+      appendClockwiseShorelineTriangle(
         firstVertex + index,
         firstVertex + innerOffset + index,
         firstVertex + innerOffset + next,
+        shoreline.outer[index],
+        shoreline.inner[index],
+        shoreline.inner[next],
+      );
+      appendClockwiseShorelineTriangle(
         firstVertex + index,
         firstVertex + innerOffset + next,
         firstVertex + next,
+        shoreline.outer[index],
+        shoreline.inner[next],
+        shoreline.outer[next],
       );
     }
     const addedVertices = shoreline.outer.length + shoreline.inner.length;
