@@ -38,8 +38,8 @@ jobs:
           set -euo pipefail
           rm -rf /tmp/pr225-pages-public
           mkdir -p /tmp/pr225-pages-public
-          curl --fail --location --retry 2 --silent --show-error 'https://sdmntprukwest.oaiusercontent.com/files/00000000-2eec-8243-88f3-3d857062ebb5/raw?se=2026-08-18T13%3A03%3A17Z&sp=r&sv=2026-02-06&sr=b&scid=2fd51015-a739-54df-a7f5-3fe439d72e77&skoid=a0b9f82a-c86e-4064-a822-2aa38890bb37&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-08-17T22%3A41%3A21Z&ske=2026-08-18T22%3A41%3A21Z&sks=b&skv=2026-02-06&sig=OEPXlbPYIzNjklxiI8s/xklnfSAQduwJv7iDvPEElZg%3D' --output /tmp/pr225-pages-public.zip
-          echo 'e21ab22dab01d6019a3e533830d4584a960d049683bfffc57045001c8f4dafe9  /tmp/pr225-pages-public.zip' | sha256sum --check --strict
+          curl --fail --location --retry 2 --silent --show-error 'https://sdmntprpolandcentral.oaiusercontent.com/files/00000000-bf1c-820a-9cbc-df213ee6bf83/raw?se=2026-08-18T13%3A46%3A48Z&sp=r&sv=2026-02-06&sr=b&scid=d43c253c-10fd-5e47-99b7-94bcbcc5bd51&skoid=a0b9f82a-c86e-4064-a822-2aa38890bb37&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-08-18T07%3A18%3A03Z&ske=2026-08-19T07%3A18%3A03Z&sks=b&skv=2026-02-06&sig=EC2tIs5zccwtmlZXoFYLYplZi6DMZdF4kUG6rOyjYiI%3D' --output /tmp/pr225-pages-public.zip
+          echo 'e37658c28ba4833e9851b337810502bd482075e81cb1b648b0b60041073d9daa  /tmp/pr225-pages-public.zip' | sha256sum --check --strict
           unzip -q /tmp/pr225-pages-public.zip -d /tmp/pr225-pages-public
 
           rm -rf labs quality
@@ -72,9 +72,10 @@ jobs:
           fs.writeFileSync(path, source);
           NODE
 
-          grep -q 'pr225-safari-v5' labs/renderer-visual-gate/renderer-visual-gate-protocol.js
-          grep -q '2981b9e07013f26119666d68a7fec2403d8510dc43bf2b0267ebfe06f47a2ef5' labs/renderer-visual-gate/renderer-visual-gate-protocol.js
-          grep -q 'watercourse-edge-and-surface-v3' labs/renderer-visual-gate/renderer-visual-gate-protocol.js
+          grep -q 'pr225-safari-v6' labs/renderer-visual-gate/renderer-visual-gate-protocol.js
+          grep -q '3f835a55b470e3bbcd6d83a3b1bca33cd4ed3b3bda4298ea44bfa47718a54ce8' labs/renderer-visual-gate/renderer-visual-gate-protocol.js
+          grep -q 'watercourse-edge-and-surface-v4' labs/renderer-visual-gate/renderer-visual-gate-protocol.js
+          grep -q 'vertices: 92' labs/renderer-visual-gate/renderer-visual-gate-protocol.js
           test -f labs/renderer-evaluation/index.html
           test -f quality/renderer-source-manifest.v1.json
 
@@ -82,7 +83,7 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add labs quality .nojekyll
           if ! git diff --cached --quiet; then
-            git commit -m 'Materialize PR225 v5 visual gate [skip ci]'
+            git commit -m 'Materialize PR225 v6 visual gate [skip ci]'
             git push origin HEAD:main
           fi
 
@@ -118,15 +119,15 @@ jobs:
           mkdir -p .preview
           cat > .preview/pr225-live.json <<JSON
           {
-            "gateVersion": "pr225-safari-v5",
-            "rendererSourceFingerprint": "2981b9e07013f26119666d68a7fec2403d8510dc43bf2b0267ebfe06f47a2ef5",
-            "sourceHead": "08eeee5e30b083f84f53ff3f27f62539242393f9",
-            "artifactSha256": "e21ab22dab01d6019a3e533830d4584a960d049683bfffc57045001c8f4dafe9",
+            "gateVersion": "pr225-safari-v6",
+            "rendererSourceFingerprint": "3f835a55b470e3bbcd6d83a3b1bca33cd4ed3b3bda4298ea44bfa47718a54ce8",
+            "sourceHead": "98cc64c3a89ffa51fff765341df2c6f8e5eff190",
+            "artifactSha256": "e37658c28ba4833e9851b337810502bd482075e81cb1b648b0b60041073d9daa",
             "materializedInPublicRepo": true,
             "pageUrl": "${PAGE_URL}",
             "visualGateUrl": "${PAGE_URL}labs/renderer-visual-gate/"
           }
           JSON
           git add .preview/pr225-live.json
-          git commit -m 'Record materialized PR225 v5 preview [skip ci]'
+          git commit -m 'Record materialized PR225 v6 preview [skip ci]'
           git push origin HEAD:main
