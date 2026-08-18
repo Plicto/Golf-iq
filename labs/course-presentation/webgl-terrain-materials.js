@@ -5,12 +5,13 @@ import {
 
 export const WEBGL_GROUND_ART_VERSION = "links-ground-v6";
 export const WEBGL_WATERCOURSE_ART_VERSION =
-  "watercourse-edge-and-surface-v3";
-export const WEBGL_WATER_SHORELINE_WIDTH_METERS = 1.35;
+  "watercourse-edge-and-surface-v4";
+export const WEBGL_WATER_SHORELINE_WIDTH_METERS = 1.18;
 export const WEBGL_WATER_SHORELINE_OUTER_LIFT_METERS = 0.028;
 export const WEBGL_WATER_SHORELINE_INNER_LIFT_METERS = 0.021;
-export const WEBGL_WATER_SURFACE_RENDER_LIFT_METERS = 0.006;
-export const WEBGL_WATERCOURSE_SMOOTHING_PASSES = 2;
+export const WEBGL_WATER_SURFACE_RENDER_LIFT_METERS = 0.018;
+export const WEBGL_WATERCOURSE_MIN_RIBBON_STATIONS = 20;
+export const WEBGL_WATERCOURSE_MAX_RIBBON_STATIONS = 24;
 export const WEBGL_WATER_SHORELINE_MAX_VERTICES = 192;
 export const WEBGL_WATER_SHORELINE_MAX_TRIANGLES = 192;
 export const WEBGL_WATER_SHORELINE_MAX_BYTES = 7_104;
@@ -99,15 +100,17 @@ export function pointInCoursePolygon(points, point) {
 
 const WATER_SURFACE_GROUP_CACHE = new WeakMap();
 
-const interpolateWaterPoint = (from, to, amount) => {
-  const point = {
-    x: from.x + (to.x - from.x) * amount,
-    z: from.z + (to.z - from.z) * amount,
-  };
-  if (Number.isFinite(from.y) && Number.isFinite(to.y)) {
-    point.y = from.y + (to.y - from.y) * amount;
-  }
-  return Object.freeze(point);
+const AUTHORED_WATER_SURFACE_GROUP_CACHE = new WeakMap();
+
+const authoredWaterSurfaceGroupsFor = (world) => {
+  const cached = AUTHORED_WATER_SURFACE_GROUP_CACHE.get(world);
+  if (cached) return cached;
+  const authored = world.waterSurfaceGroups ?? (
+    world.waterSurfacePoints.length < 3 ? [] : [world.waterSurfacePoints]
+  );
+  const groups = Object.freeze(authored.map((points) => Object.freeze(points)));
+  AUTHORED_WATER_SURFACE_GROUP_CACHE.set(world, groups);
+  return groups;
 };
 
 const waterEdgeHash = (cellX, cellZ) => {
@@ -132,81 +135,183 @@ const waterEdgeNoise = (x, z) => {
   return lower * (1 - blendZ) + upper * blendZ;
 };
 
-const smoothWaterSurfaceGroup = (points) => {
-  let smoothed = [...points];
-  for (let pass = 0; pass < WEBGL_WATERCOURSE_SMOOTHING_PASSES; pass += 1) {
-    const source = smoothed;
-    const next = [];
-    for (let index = 0; index < source.length; index += 1) {
-      const point = source[index];
-      const following = source[(index + 1) % source.length];
-      const baseRatio = pass === 0 ? 0.18 : 0.14;
-      const variation = (((index * 37 + pass * 19) % 7) - 3) * 0.006;
-      const ratio = clamp(baseRatio + variation, 0.11, 0.22);
-      next.push(
-        interpolateWaterPoint(point, following, ratio),
-        interpolateWaterPoint(point, following, 1 - ratio),
-      );
-    }
-    smoothed = next;
+const waterCrossSectionAt = (points, primaryAxis, coordinate) => {
+  const crossAxis = primaryAxis === "z" ? "x" : "z";
+  const intersections = [];
+  for (let index = 0; index < points.length; index += 1) {
+    const start = points[index];
+    const end = points[(index + 1) % points.length];
+    const startPrimary = start[primaryAxis];
+    const endPrimary = end[primaryAxis];
+    if (Math.abs(endPrimary - startPrimary) <= 1e-9) continue;
+    const minimum = Math.min(startPrimary, endPrimary);
+    const maximum = Math.max(startPrimary, endPrimary);
+    if (coordinate < minimum || coordinate >= maximum) continue;
+    const progress = (coordinate - startPrimary) /
+      (endPrimary - startPrimary);
+    intersections.push(
+      start[crossAxis] + (end[crossAxis] - start[crossAxis]) * progress,
+    );
   }
-  return smoothed;
+  intersections.sort((left, right) => left - right);
+  if (intersections.length < 2 || intersections.length % 2 !== 0) {
+    return null;
+  }
+  let selected = null;
+  for (let index = 0; index < intersections.length; index += 2) {
+    const minimum = intersections[index];
+    const maximum = intersections[index + 1];
+    if (!selected || maximum - minimum > selected.maximum - selected.minimum) {
+      selected = { minimum, maximum };
+    }
+  }
+  return selected;
 };
 
-const naturalizeWaterSurfaceGroup = (points) => {
-  const orientation = polygonSignedArea(points) >= 0 ? 1 : -1;
-  const buildNaturalized = (scale) => points.map((point, index) => {
-    const prior = points[(index + points.length - 1) % points.length];
-    const next = points[(index + 1) % points.length];
-    const tangentX = next.x - prior.x;
-    const tangentZ = next.z - prior.z;
-    const tangentLength = Math.hypot(tangentX, tangentZ);
-    if (tangentLength <= 1e-8) return point;
-    const unitX = tangentX / tangentLength;
-    const unitZ = tangentZ / tangentLength;
-    const inwardX = orientation > 0 ? -unitZ : unitZ;
-    const inwardZ = orientation > 0 ? unitX : -unitX;
-    const broad = waterEdgeNoise(point.x * 0.035, point.z * 0.035);
-    const detail = waterEdgeNoise(
-      point.x * 0.071 + 17.3,
-      point.z * 0.071 - 9.4,
-    );
-    let distance = clamp(1.45 + broad * 0.5 + detail * 0.2, 0.75, 2.15) * scale;
-    for (let attempt = 0; attempt < 8; attempt += 1) {
-      const candidate = Object.freeze({
-        x: point.x + inwardX * distance,
-        z: point.z + inwardZ * distance,
-        ...(Number.isFinite(point.y) ? { y: point.y } : {}),
-      });
-      if (pointInCoursePolygon(points, candidate)) return candidate;
-      distance *= 0.5;
-    }
-    return point;
-  });
-  for (const scale of [1, 0.72, 0.5, 0.35, 0.24]) {
-    const candidate = buildNaturalized(scale);
-    try {
-      triangulateCourseSurface(candidate);
-      return Object.freeze(candidate);
-    } catch {
-      // Reduce the complete contour amplitude deterministically.
+const waterRibbonEdgeFitsAuthored = (authored, start, end) => {
+  for (const progress of [0.2, 0.4, 0.6, 0.8]) {
+    if (!pointInCoursePolygon(authored, {
+      x: start.x + (end.x - start.x) * progress,
+      z: start.z + (end.z - start.z) * progress,
+    })) {
+      return false;
     }
   }
-  return Object.freeze(points);
+  return true;
+};
+
+const buildWatercourseRibbon = (authored, groupIndex) => {
+  const minimumX = Math.min(...authored.map(({ x }) => x));
+  const maximumX = Math.max(...authored.map(({ x }) => x));
+  const minimumZ = Math.min(...authored.map(({ z }) => z));
+  const maximumZ = Math.max(...authored.map(({ z }) => z));
+  const spanX = maximumX - minimumX;
+  const spanZ = maximumZ - minimumZ;
+  const primaryAxis = spanZ >= spanX ? "z" : "x";
+  const primaryMinimum = primaryAxis === "z" ? minimumZ : minimumX;
+  const primaryMaximum = primaryAxis === "z" ? maximumZ : maximumX;
+  const primarySpan = primaryMaximum - primaryMinimum;
+  const stationCount = clamp(
+    Math.round(primarySpan / 6),
+    WEBGL_WATERCOURSE_MIN_RIBBON_STATIONS,
+    WEBGL_WATERCOURSE_MAX_RIBBON_STATIONS,
+  );
+  const sections = [];
+  for (let index = 0; index < stationCount; index += 1) {
+    const progress = 0.025 + (index / (stationCount - 1)) * 0.95;
+    const primary = primaryMinimum + primarySpan * progress;
+    const intersection = waterCrossSectionAt(authored, primaryAxis, primary);
+    if (!intersection) continue;
+    const authoredCenter = (intersection.minimum + intersection.maximum) * 0.5;
+    const authoredHalfWidth = (intersection.maximum - intersection.minimum) * 0.5;
+    if (authoredHalfWidth <= 1.1) continue;
+    sections.push(Object.freeze({
+      primary,
+      progress,
+      authoredCenter,
+      authoredHalfWidth,
+    }));
+  }
+  if (sections.length < WEBGL_WATERCOURSE_MIN_RIBBON_STATIONS - 2) {
+    throw new RangeError("watercourse ribbon has insufficient interior cross-sections");
+  }
+  const buildCandidate = (amplitudeScale) => {
+    const left = [];
+    const right = [];
+    for (const section of sections) {
+      const broad = waterEdgeNoise(
+        section.primary * 0.018 + groupIndex * 11.3,
+        section.primary * 0.006 - groupIndex * 7.1,
+      );
+      const detail = waterEdgeNoise(
+        section.primary * 0.041 + 17.7 + groupIndex * 5.2,
+        section.primary * 0.014 - 9.3 - groupIndex * 3.4,
+      );
+      const widthNoise = waterEdgeNoise(
+        section.primary * 0.026 - 8.4,
+        section.primary * 0.009 + 4.2 + groupIndex * 2.7,
+      );
+      const maximumOffset = Math.min(
+        1.65,
+        section.authoredHalfWidth * 0.26,
+      );
+      const offset = clamp(
+        (broad * 1.08 + detail * 0.36) * maximumOffset * amplitudeScale,
+        -maximumOffset,
+        maximumOffset,
+      );
+      const maximumHalfWidth = Math.max(
+        0.7,
+        section.authoredHalfWidth - Math.abs(offset) - 0.48,
+      );
+      const desiredHalfWidth = clamp(
+        section.authoredHalfWidth * (0.57 + widthNoise * 0.075),
+        1.7,
+        3.35,
+      );
+      const capProgress = clamp(
+        Math.min(section.progress, 1 - section.progress) / 0.095,
+        0,
+        1,
+      );
+      const capBlend = capProgress * capProgress * (3 - 2 * capProgress);
+      const halfWidth = Math.min(maximumHalfWidth, desiredHalfWidth) *
+        (0.42 + capBlend * 0.58);
+      const center = section.authoredCenter + offset;
+      const first = primaryAxis === "z"
+        ? Object.freeze({ x: center - halfWidth, z: section.primary })
+        : Object.freeze({ x: section.primary, z: center - halfWidth });
+      const second = primaryAxis === "z"
+        ? Object.freeze({ x: center + halfWidth, z: section.primary })
+        : Object.freeze({ x: section.primary, z: center + halfWidth });
+      left.push(first);
+      right.push(second);
+    }
+    const candidate = [...left, ...right.reverse()];
+    if (candidate.some((point) => !pointInCoursePolygon(authored, point))) {
+      return null;
+    }
+    for (let index = 0; index < candidate.length; index += 1) {
+      if (!waterRibbonEdgeFitsAuthored(
+        authored,
+        candidate[index],
+        candidate[(index + 1) % candidate.length],
+      )) {
+        return null;
+      }
+    }
+    try {
+      triangulateCourseSurface(candidate);
+    } catch {
+      return null;
+    }
+    return Object.freeze(candidate);
+  };
+  for (const amplitudeScale of [1, 0.82, 0.66, 0.5, 0.34]) {
+    const candidate = buildCandidate(amplitudeScale);
+    if (candidate) return candidate;
+  }
+  throw new RangeError("watercourse ribbon cannot remain inside authored hazard");
 };
 
 export const waterSurfaceGroupsFor = (world) => {
   const cached = WATER_SURFACE_GROUP_CACHE.get(world);
   if (cached) return cached;
-  const authored = world.waterSurfaceGroups ?? (
-    world.waterSurfacePoints.length < 3 ? [] : [world.waterSurfacePoints]
+  const rendered = Object.freeze(
+    authoredWaterSurfaceGroupsFor(world).map((points, index) =>
+      buildWatercourseRibbon(points, index)
+    ),
   );
-  const naturalized = Object.freeze(authored.map((points) =>
-    naturalizeWaterSurfaceGroup(smoothWaterSurfaceGroup(points))
-  ));
-  WATER_SURFACE_GROUP_CACHE.set(world, naturalized);
-  return naturalized;
+  WATER_SURFACE_GROUP_CACHE.set(world, rendered);
+  return rendered;
 };
+
+const authoredWaterSurfaceIndexAt = (world, point) =>
+  authoredWaterSurfaceGroupsFor(world).findIndex((points) =>
+    pointInCoursePolygon(points, point)
+  );
+
+
 
 export function pointInCourseTee(world, point, padding = 0) {
   finitePoint(point, "tee point");
@@ -632,7 +737,7 @@ export function createWebglTerrainGeometry(world, {
   const stepX = spanX / columns;
   const stepZ = spanZ / rows;
   const renderedSurfaceHeightAt = (x, z) => {
-    const waterSurfaceIndex = waterSurfaceIndexAt(world, { x, z });
+    const waterSurfaceIndex = authoredWaterSurfaceIndexAt(world, { x, z });
     return waterSurfaceIndex >= 0
       ? (world.waterLevels?.[waterSurfaceIndex] ?? world.waterLevel) + 0.012
       : world.surfaceElevationAt(x, z);
@@ -755,7 +860,7 @@ export function createWebglTerrainGeometry(world, {
     coarseHeightAt: (x, z) =>
       webglTerrainHeightAt(world, { x, z }, baseGeometry),
     coarseNormalAt,
-    excludedSurfaceGroups: waterSurfaceGroupsFor(world),
+    excludedSurfaceGroups: authoredWaterSurfaceGroupsFor(world),
     normalAt: (point) => courseSurfaceNormalAt(world, point),
     surfaceHeightAt: renderedSurfaceHeightAt,
   });
@@ -855,6 +960,7 @@ export function createWebglTerrainGeometry(world, {
     materialId = WEBGL_SURFACE_MATERIAL_IDS[material],
     materialCountName = material,
     includeBunkerTriangles = false,
+    surfaceIndex = null,
   }) => {
     const clockwisePoints = polygonSignedArea(points) > 0
       ? [...points].reverse()
@@ -882,8 +988,10 @@ export function createWebglTerrainGeometry(world, {
       if (surfaceIndices.length === 0) return;
       const firstVertex = positions.length / 3;
       for (const point of surfacePoints) {
-        const y = triangleHeightAt(baseTriangle, point) +
-          (material === "water" ? WEBGL_WATER_SURFACE_RENDER_LIFT_METERS : 0);
+        const y = material === "water"
+          ? (world.waterLevels?.[surfaceIndex] ?? world.waterLevel) +
+            WEBGL_WATER_SURFACE_RENDER_LIFT_METERS
+          : triangleHeightAt(baseTriangle, point);
         const normal = material === "water"
           ? { x: 0, y: 1, z: 0 }
           : courseSurfaceNormalAt(world, point);
@@ -1059,7 +1167,12 @@ export function createWebglTerrainGeometry(world, {
     const firstIndex = indices.length;
     for (let index = 0; index < surfaceGroups.length; index += 1) {
       const points = surfaceGroups[index];
-      appendSurface({ points, material, ...surfaceOptions });
+      appendSurface({
+        points,
+        material,
+        surfaceIndex: index,
+        ...surfaceOptions,
+      });
       afterSurface?.(points, index);
     }
     const indexCount = indices.length - firstIndex;
