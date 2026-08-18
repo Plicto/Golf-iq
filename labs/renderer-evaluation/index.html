@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1"
+    />
+    <meta name="theme-color" content="#07130d" />
+    <meta
+      name="description"
+      content="Golf IQ renderer comparison and browser measurement probe."
+    />
+    <title>Golf IQ Renderer Evaluation</title>
+    <link rel="stylesheet" href="./renderer-evaluation.css" />
+  </head>
+  <body>
+    <main class="renderer-lab">
+      <section id="renderer-surface" class="renderer-surface"></section>
+
+      <header class="renderer-hud">
+        <span class="renderer-kicker">Renderer evaluation · GitHub #202</span>
+        <strong id="renderer-scenario">Approach flyby</strong>
+        <span id="renderer-backend">canvas2d</span>
+      </header>
+
+      <section class="renderer-controls" aria-label="Renderer evaluation controls">
+        <div class="renderer-choice" role="group" aria-label="Renderer backend">
+          <button
+            type="button"
+            data-renderer-backend="canvas2d"
+            data-active="true"
+            aria-pressed="true"
+          >Canvas 2D</button>
+          <button
+            type="button"
+            data-renderer-backend="webgl2-hybrid"
+            data-active="false"
+            aria-pressed="false"
+          >WebGL2 hybrid</button>
+        </div>
+        <label class="renderer-scene">
+          <span>Canonical scene</span>
+          <select id="renderer-scenario-select"></select>
+        </label>
+        <output id="renderer-metrics">Ready for measurement</output>
+      </section>
+    </main>
+
+    <script>
+      window.__rendererBootErrors = [];
+      window.addEventListener("error", (event) => {
+        window.__rendererBootErrors.push(event.error?.stack ?? event.message);
+        document.documentElement.dataset.rendererError = event.message;
+      });
+      window.addEventListener("unhandledrejection", (event) => {
+        window.__rendererBootErrors.push(event.reason?.stack ?? String(event.reason));
+        document.documentElement.dataset.rendererError =
+          event.reason?.message ?? String(event.reason);
+      });
+    </script>
+    <script type="module" src="./renderer-evaluation.js"></script>
+  </body>
+</html>

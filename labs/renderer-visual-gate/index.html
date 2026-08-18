@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1"
+    />
+    <meta name="theme-color" content="#07130d" />
+    <meta
+      name="description"
+      content="Golf IQ fixed-frame physical iPhone visual candidate gate."
+    />
+    <title>Golf IQ iPhone Visual Gate</title>
+    <link rel="stylesheet" href="./renderer-visual-gate.css" />
+  </head>
+  <body>
+    <main class="visual-gate">
+      <iframe
+        id="renderer-frame"
+        class="renderer-frame"
+        src="../renderer-evaluation/index.html?probe=1&amp;backend=webgl2-hybrid&amp;scenario=north-inlet.watercourse.overview&amp;strict=1"
+        title="Golf IQ fixed-frame renderer scene"
+        aria-hidden="true"
+      ></iframe>
+
+      <section class="gate-panel" aria-labelledby="gate-title">
+        <p class="gate-kicker">Physical iPhone visual candidate · GitHub #225</p>
+        <h1 id="gate-title">Fixed-frame Safari captures</h1>
+        <p id="gate-summary" class="gate-summary">
+          Generates all four canonical WebGL scenes twice and requires each PNG
+          pair to be byte-identical. This normally takes less than one minute.
+        </p>
+
+        <div class="gate-readout" aria-live="polite">
+          <span id="gate-stage">Verifying renderer source</span>
+          <strong id="gate-progress-label">0 of 8 captures</strong>
+        </div>
+        <progress id="gate-progress" max="8" value="0">0 of 8</progress>
+
+        <ul class="gate-checklist">
+          <li>Open this page on a physical iPhone in a normal Safari tab.</li>
+          <li>Keep Safari visible and the phone in portrait until it finishes.</li>
+          <li>The gate uses a fixed 390 × 844 renderer viewport.</li>
+          <li>This is a visual candidate, not a new endurance run.</li>
+        </ul>
+
+        <div id="capture-previews" class="capture-previews" hidden>
+          <figure data-scenario="north-inlet.watercourse.overview">
+            <img alt="Watercourse overview fixed-frame capture" />
+            <figcaption>Watercourse</figcaption>
+          </figure>
+          <figure data-scenario="north-inlet.drive.rear">
+            <img alt="Rear flight fixed-frame capture" />
+            <figcaption>Rear flight</figcaption>
+          </figure>
+          <figure data-scenario="north-inlet.drive.landing">
+            <img alt="Landing fixed-frame capture" />
+            <figcaption>Landing</figcaption>
+          </figure>
+          <figure data-scenario="north-inlet.green.read">
+            <img alt="Green read fixed-frame capture" />
+            <figcaption>Green read</figcaption>
+          </figure>
+        </div>
+
+        <p id="gate-error" class="gate-error" hidden></p>
+
+        <div class="gate-actions">
+          <button id="start-gate" type="button" disabled>
+            Generate four captures
+          </button>
+          <button id="share-gate" type="button" hidden>Share result</button>
+          <button id="download-gate" type="button" class="secondary" hidden>
+            Download JSON
+          </button>
+        </div>
+      </section>
+    </main>
+
+    <script type="module" src="./renderer-visual-gate.js"></script>
+  </body>
+</html>

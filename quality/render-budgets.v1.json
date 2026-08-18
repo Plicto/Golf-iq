@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "canonicalViewport": {
+    "cssWidth": 390,
+    "cssHeight": 844,
+    "devicePixelRatio": 3,
+    "maximumRendererDevicePixelRatio": 2.5
+  },
+  "protocol": {
+    "warmupMs": 3000,
+    "measurementMs": 12000,
+    "runsPerBackendScenario": 5,
+    "freshPagePerRun": true
+  },
+  "ciWebkit": {
+    "enforcement": "calibration",
+    "minimumCalibrationSamples": 20,
+    "maximumCoefficientOfVariation": 0.1,
+    "minimumSampleCountPerRun": 600,
+    "frameIntervalP95Ms": 20,
+    "frameIntervalP99Ms": 34,
+    "framesOver33MsRatio": 0.015,
+    "framesOver50MsRatio": 0.002,
+    "renderP95Ms": 12,
+    "contextLosses": 0
+  },
+  "physicalIphone": {
+    "runsPerScenario": 3,
+    "warmupSeconds": 5,
+    "measurementSeconds": 20,
+    "minimumSampleCountPerRun": 1000,
+    "sustainedSeconds": 300,
+    "sustainedWindowSeconds": 60,
+    "renderScale": 1,
+    "maximumRendererDevicePixelRatio": 2.5,
+    "minimumDevicePixelRatio": 2,
+    "minimumRendererCssWidth": 320,
+    "minimumRendererCssHeight": 400,
+    "frameIntervalP95Ms": 20,
+    "frameIntervalP99Ms": 25,
+    "framesOver33MsRatio": 0.01,
+    "framesOver50MsRatio": 0.001,
+    "renderP95Ms": 10,
+    "finalMinuteP95DegradationRatio": 0.1,
+    "contextLosses": 0
+  }
+}

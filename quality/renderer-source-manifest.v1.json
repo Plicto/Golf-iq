@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "algorithm": "sha256",
+  "entrypoints": [
+    {
+      "path": "/labs/course-presentation/index.html",
+      "sha256": "28b8f810ce16cb7fb2c1de42ac83dca670e079f268bfa67b646ebb6cf30365a8"
+    },
+    {
+      "path": "/labs/renderer-device-gate/index.html",
+      "sha256": "47cdf55d60b32182cc4d71eb4061322457d7c3ef57cd1975ee0193ab1d637b39"
+    },
+    {
+      "path": "/labs/renderer-evaluation/index.html",
+      "sha256": "b2ac3039df8d321450ff61f559b0117761c7aa12d01cc2fe47d1d494ea67f704"
+    }
+  ],
+  "files": [
+    "/labs/course-presentation/broadcast-camera.js",
+    "/labs/course-presentation/broadcast-tracer.js",
+    "/labs/course-presentation/cinematic-flyby.js",
+    "/labs/course-presentation/course-presentation-registry.js",
+    "/labs/course-presentation/course-presentation.css",
+    "/labs/course-presentation/course-presentation.js",
+    "/labs/course-presentation/course-renderer-runtime.js",
+    "/labs/course-presentation/course-renderer-session.js",
+    "/labs/course-presentation/course-renderer.js",
+    "/labs/course-presentation/cup-finish.js",
+    "/labs/course-presentation/gannet-shelf-flyby.js",
+    "/labs/course-presentation/gannet-shelf-hole-package.js",
+    "/labs/course-presentation/gannet-shelf-world.js",
+    "/labs/course-presentation/lab-hole-runtime-registry.js",
+    "/labs/course-presentation/lab-hole-runtime-v1.js",
+    "/labs/course-presentation/machair-run-flyby.js",
+    "/labs/course-presentation/machair-run-hole-package.js",
+    "/labs/course-presentation/machair-run-world.js",
+    "/labs/course-presentation/north-inlet-flyby.js",
+    "/labs/course-presentation/north-inlet-hole-package.js",
+    "/labs/course-presentation/north-inlet-world.js",
+    "/labs/course-presentation/presentation-tape.js",
+    "/labs/course-presentation/putt-camera.js",
+    "/labs/course-presentation/recovery-hole-catalog.js",
+    "/labs/course-presentation/recovery-hole-package.js",
+    "/labs/course-presentation/renderer-probe-contract.js",
+    "/labs/course-presentation/renderer-release-policy.js",
+    "/labs/course-presentation/renderer-scenarios.js",
+    "/labs/course-presentation/webgl-bunker-art.js",
+    "/labs/course-presentation/webgl-course-art-worker.js",
+    "/labs/course-presentation/webgl-course-art.js",
+    "/labs/course-presentation/webgl-course-renderer.js",
+    "/labs/course-presentation/webgl-rough-vegetation.js",
+    "/labs/course-presentation/webgl-terrain-materials.js",
+    "/labs/renderer-device-gate/renderer-device-gate-protocol.js",
+    "/labs/renderer-device-gate/renderer-device-gate.css",
+    "/labs/renderer-device-gate/renderer-device-gate.js",
+    "/labs/renderer-evaluation/renderer-evaluation.css",
+    "/labs/renderer-evaluation/renderer-evaluation.js",
+    "/quality/render-budgets.v1.json"
+  ],
+  "digest": "f4f4e5f6d18f22dd4657f7df411faf3ea29f63606e24fed0a5403a8bb2c21afe"
+}

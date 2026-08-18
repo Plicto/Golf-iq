@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1"
+    />
+    <meta name="theme-color" content="#07130d" />
+    <meta
+      name="description"
+      content="Golf IQ physical iPhone renderer candidate run."
+    />
+    <title>Golf IQ iPhone Renderer Gate</title>
+    <link rel="stylesheet" href="./renderer-device-gate.css" />
+  </head>
+  <body>
+    <main class="device-gate">
+      <iframe
+        id="renderer-frame"
+        class="renderer-frame"
+        src="../renderer-evaluation/index.html?probe=1&backend=webgl2-hybrid&strict=1"
+        title="Golf IQ renderer measurement scene"
+      ></iframe>
+
+      <section class="gate-panel" aria-labelledby="gate-title">
+        <p class="gate-kicker">Physical iPhone candidate · GitHub #208</p>
+        <h1 id="gate-title">Renderer endurance run</h1>
+        <p id="gate-summary" class="gate-summary">
+          Keep Safari open in portrait. The full run takes about 26 minutes and
+          does not by itself approve WebGL for release.
+        </p>
+
+        <div class="gate-readout" aria-live="polite">
+          <span id="gate-stage">Preparing renderer</span>
+          <strong id="gate-progress-label">0 of 16 measurements</strong>
+        </div>
+        <progress id="gate-progress" max="16" value="0">0 of 16</progress>
+
+        <ul class="gate-checklist">
+          <li>Use a physical iPhone in a normal Safari tab.</li>
+          <li>Turn off Low Power Mode and let the phone cool first.</li>
+          <li>Keep the screen on, portrait and untouched during the run.</li>
+          <li>Do not record the screen or connect Web Inspector while measuring.</li>
+        </ul>
+
+        <p id="gate-error" class="gate-error" hidden></p>
+
+        <div class="gate-actions">
+          <button id="start-gate" type="button" disabled>Start full run</button>
+          <button id="cancel-gate" type="button" class="secondary" hidden>
+            Cancel
+          </button>
+          <button id="share-gate" type="button" hidden>Share result</button>
+          <button id="download-gate" type="button" class="secondary" hidden>
+            Download JSON
+          </button>
+        </div>
+      </section>
+    </main>
+
+    <script type="module" src="./renderer-device-gate.js"></script>
+  </body>
+</html>

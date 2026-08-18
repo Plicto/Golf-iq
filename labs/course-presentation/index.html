@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1"
+    />
+    <meta name="theme-color" content="#06100b" />
+    <meta
+      name="description"
+      content="Golf IQ presentation tape lab for the North Inlet recovery runtime."
+    />
+    <title>Golf IQ Course Presentation Lab</title>
+    <link rel="stylesheet" href="./course-presentation.css" />
+  </head>
+  <body>
+    <main class="lab-shell">
+      <canvas
+        id="course-world-canvas"
+        class="course-render-layer"
+        aria-hidden="true"
+      ></canvas>
+      <canvas
+        id="course-canvas"
+        class="course-render-layer"
+        role="img"
+        aria-label="Recorded presentation of North Inlet, recovery hole one"
+      >Recorded presentation of North Inlet, recovery hole one.</canvas>
+
+      <header class="top-hud" aria-label="Hole information">
+        <div class="hole-lockup">
+          <strong class="hole-number">1</strong>
+          <span class="hole-copy">
+            <span class="eyebrow">Recovery runtime · Par 4 · 389 m</span>
+            <span class="hole-name">North Inlet</span>
+          </span>
+        </div>
+        <span id="tape-badge" class="tape-badge">Rear camera</span>
+      </header>
+
+      <aside class="scene-readout">
+        <span
+          id="phase-label"
+          class="phase-label"
+          aria-live="polite"
+          aria-atomic="true"
+        >Ready</span>
+        <strong id="distance-label">0 m</strong>
+      </aside>
+
+      <section class="control-deck" aria-label="Presentation tape controls">
+        <div class="tape-panel">
+          <div class="mode-switch" role="group" aria-label="Presentation mode">
+            <button
+              type="button"
+              data-presentation-mode="broadcast"
+              data-active="true"
+              aria-pressed="true"
+            >
+              TV broadcast
+            </button>
+            <button
+              type="button"
+              data-presentation-mode="overview"
+              data-active="false"
+              aria-pressed="false"
+            >
+              Overview
+            </button>
+            <button
+              type="button"
+              data-presentation-mode="green"
+              data-active="false"
+              aria-pressed="false"
+            >
+              Green
+            </button>
+          </div>
+
+          <div
+            id="green-view-switch"
+            class="green-view-switch"
+            role="group"
+            aria-label="Green presentation"
+            hidden
+          >
+            <button
+              type="button"
+              data-green-view="detail"
+              data-active="false"
+              aria-pressed="false"
+            >
+              Flag detail
+            </button>
+            <button
+              type="button"
+              data-green-view="holed"
+              data-active="true"
+              aria-pressed="true"
+            >
+              Holed
+            </button>
+            <button
+              type="button"
+              data-green-view="missed"
+              data-active="false"
+              aria-pressed="false"
+            >
+              Near miss
+            </button>
+          </div>
+
+          <div class="tape-heading">
+            <span class="tape-heading-copy">
+              <span id="view-label" class="metric-label">TV direction</span>
+              <strong id="event-label">Behind the ball</strong>
+            </span>
+            <span id="shot-chip" class="shot-chip">Two-camera · Tracer</span>
+          </div>
+
+          <label class="timeline" for="tape-progress">
+            <input
+              id="tape-progress"
+              type="range"
+              min="0"
+              max="7800"
+              step="1"
+              value="0"
+              aria-label="Presentation time"
+              aria-valuetext="0.0 s"
+            />
+            <span class="timeline-meta">
+              <span id="time-label">0.0 s</span>
+              <span id="authority-label">Frozen path · Camera only</span>
+            </span>
+          </label>
+
+          <button
+            id="play-tape"
+            class="play-button"
+            type="button"
+            aria-pressed="false"
+            data-playing="false"
+          >
+            <i class="play-icon" aria-hidden="true"></i>
+            <span>Play broadcast</span>
+          </button>
+        </div>
+      </section>
+    </main>
+
+    <script type="module" src="./course-presentation.js"></script>
+  </body>
+</html>

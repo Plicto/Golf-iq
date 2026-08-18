@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Golf IQ Course Presentation</title>
+    <script>
+      const target = new URL("../course-presentation/index.html", window.location.href);
+      target.search = window.location.search;
+      if (!target.searchParams.has("presentation")) {
+        target.searchParams.set("presentation", "flyby");
+      }
+      target.hash = window.location.hash;
+      window.location.replace(target);
+    </script>
+  </head>
+  <body>
+    <a href="../course-presentation/index.html">Open the course presentation</a>
+  </body>
+</html>
