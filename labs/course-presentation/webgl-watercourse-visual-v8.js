@@ -1,6 +1,16 @@
-import { pointInCoursePolygon, waterSurfaceGroupsFor } from "./webgl-terrain-materials.js";
+import {
+  WEBGL_TERRAIN_COLUMNS,
+  WEBGL_TERRAIN_ROWS,
+  WEBGL_WATER_SURFACE_RENDER_LIFT_METERS,
+  pointInCoursePolygon,
+  waterSurfaceGroupsFor,
+} from "./webgl-terrain-materials.js";
 
-export const WEBGL_VISUAL_WATERCOURSE_VERSION = "authored-spline-v1";
+export const WEBGL_VISUAL_WATERCOURSE_VERSION = "authored-spline-v2";
+
+const WATER_BANK_DEPTH_CLEARANCE_METERS = 0.015;
+const WATER_BANK_OUTER_RISE_PER_METER = 0.45;
+const WATER_BANK_MAX_INFLUENCE_METERS = 14;
 
 const CONTROLS = Object.freeze({
   "north-inlet": Object.freeze({ axis: "z", points: Object.freeze([
@@ -103,6 +113,97 @@ const buildVisualGroup = (world, gameplay) => {
   return group;
 };
 
+const pointSegmentDistance = (point, start, end) => {
+  const dx = end.x - start.x;
+  const dz = end.z - start.z;
+  const lengthSquared = dx * dx + dz * dz;
+  if (lengthSquared <= 1e-12) {
+    return Math.hypot(point.x - start.x, point.z - start.z);
+  }
+  const progress = clamp(
+    ((point.x - start.x) * dx + (point.z - start.z) * dz) /
+      lengthSquared,
+    0,
+    1,
+  );
+  return Math.hypot(
+    point.x - (start.x + dx * progress),
+    point.z - (start.z + dz * progress),
+  );
+};
+
+const bankProfileFor = (world, points, waterSurfaceIndex) => {
+  const gridDiagonal = Math.hypot(
+    (world.bounds.maximumX - world.bounds.minimumX) / WEBGL_TERRAIN_COLUMNS,
+    (world.bounds.maximumZ - world.bounds.minimumZ) / WEBGL_TERRAIN_ROWS,
+  );
+  const innerLift = Math.max(
+    0,
+    WEBGL_WATER_SURFACE_RENDER_LIFT_METERS -
+      WATER_BANK_DEPTH_CLEARANCE_METERS,
+  );
+  return Object.freeze({
+    points,
+    waterLevel: world.waterLevels?.[waterSurfaceIndex] ?? world.waterLevel,
+    gridDiagonal,
+    innerScale: innerLift / (gridDiagonal * gridDiagonal),
+    bounds: Object.freeze({
+      minimumX: Math.min(...points.map(({ x }) => x)) -
+        WATER_BANK_MAX_INFLUENCE_METERS,
+      maximumX: Math.max(...points.map(({ x }) => x)) +
+        WATER_BANK_MAX_INFLUENCE_METERS,
+      minimumZ: Math.min(...points.map(({ z }) => z)) -
+        WATER_BANK_MAX_INFLUENCE_METERS,
+      maximumZ: Math.max(...points.map(({ z }) => z)) +
+        WATER_BANK_MAX_INFLUENCE_METERS,
+    }),
+  });
+};
+
+const distanceToBankProfile = (profile, point) => {
+  if (
+    point.x < profile.bounds.minimumX ||
+    point.x > profile.bounds.maximumX ||
+    point.z < profile.bounds.minimumZ ||
+    point.z > profile.bounds.maximumZ
+  ) {
+    return Number.POSITIVE_INFINITY;
+  }
+  let distance = Number.POSITIVE_INFINITY;
+  for (let index = 0; index < profile.points.length; index += 1) {
+    distance = Math.min(
+      distance,
+      pointSegmentDistance(
+        point,
+        profile.points[index],
+        profile.points[(index + 1) % profile.points.length],
+      ),
+    );
+  }
+  return distance;
+};
+
+const bankCeilingAt = (profile, distance) => {
+  if (distance <= profile.gridDiagonal) {
+    return profile.waterLevel + profile.innerScale * distance * distance;
+  }
+  return profile.waterLevel +
+    profile.innerScale * profile.gridDiagonal * profile.gridDiagonal +
+    (distance - profile.gridDiagonal) * WATER_BANK_OUTER_RISE_PER_METER;
+};
+
+const visualSurfaceElevationFor = (world, profiles) => (x, z) => {
+  const original = world.surfaceElevationAt(x, z);
+  const point = { x, z };
+  let ceiling = Number.POSITIVE_INFINITY;
+  for (const profile of profiles) {
+    const distance = distanceToBankProfile(profile, point);
+    if (distance > WATER_BANK_MAX_INFLUENCE_METERS) continue;
+    ceiling = Math.min(ceiling, bankCeilingAt(profile, distance));
+  }
+  return Math.min(original, ceiling);
+};
+
 export function createVisualWatercourseWorld(world) {
   const gameplay = authoredGroups(world)[0];
   if (!gameplay || !CONTROLS[world.id]) return world;
@@ -111,38 +212,18 @@ export function createVisualWatercourseWorld(world) {
   const points = Object.freeze(group.map((point) =>
     Object.freeze({ ...point, y: level })
   ));
-  return Object.freeze({
+  const ribbonWorld = Object.freeze({
     ...world,
     waterSurfacePoints: points,
     waterSurfaceGroups: Object.freeze([points]),
     waterLevels: Object.freeze([level]),
   });
-}
-
-const inRenderedWater = (world, point) =>
-  waterSurfaceGroupsFor(world).some((group) => pointInCoursePolygon(group, point));
-
-export function suppressVisualWaterUndergrid(geometry, world) {
-  if (!CONTROLS[world.id]) return geometry;
-  const indices = new Uint32Array(geometry.indices);
-  const coarseEnd = geometry.bunkerPatches[0]?.firstGridIndex ?? geometry.gridTriangleCount * 3;
-  let suppressed = 0;
-  for (let offset = 0; offset < coarseEnd; offset += 3) {
-    const vertexIndices = [indices[offset], indices[offset + 1], indices[offset + 2]];
-    const vertices = vertexIndices.map((vertex) => ({
-      x: geometry.positions[vertex * 3],
-      z: geometry.positions[vertex * 3 + 2],
-    }));
-    const centroid = {
-      x: (vertices[0].x + vertices[1].x + vertices[2].x) / 3,
-      z: (vertices[0].z + vertices[1].z + vertices[2].z) / 3,
-    };
-    if ([...vertices, centroid].some((point) => inRenderedWater(world, point))) {
-      indices[offset + 1] = indices[offset];
-      indices[offset + 2] = indices[offset];
-      suppressed += 1;
-    }
-  }
-  if (!suppressed) return geometry;
-  return Object.freeze({ ...geometry, indices });
+  const renderedGroups = waterSurfaceGroupsFor(ribbonWorld);
+  const profiles = Object.freeze(renderedGroups.map((rendered, index) =>
+    bankProfileFor(ribbonWorld, rendered, index)
+  ));
+  return Object.freeze({
+    ...ribbonWorld,
+    surfaceElevationAt: visualSurfaceElevationFor(world, profiles),
+  });
 }
