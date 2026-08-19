@@ -16,7 +16,7 @@
 </head>
 <body>
   <iframe id="preview" title="Golf IQ iPhone preview"></iframe>
-  <div id="status"><strong>Golf IQ preview</strong><span id="status-text">Resolving current preview…</span></div>
+  <div id="status"><strong>Golf IQ preview</strong><span id="status-text">Loading current preview…</span></div>
   <script>
     const frame = document.querySelector("#preview");
     const status = document.querySelector("#status");
@@ -24,7 +24,6 @@
     let ready = false;
     let readyPromise = null;
     let elapsed = 0;
-    let previewHead = "";
 
     const show = (message) => {
       status.dataset.ready = "false";
@@ -41,7 +40,7 @@
         const rendererError = documentElement?.dataset?.rendererError;
         if (errors.length || rendererError) {
           show(
-            `Preview ${previewHead.slice(0, 8)}\nRenderer failed:\n` +
+            "Renderer failed:\n" +
             `${errors.join("\n\n") || rendererError}`,
           );
           return;
@@ -58,7 +57,7 @@
             status.dataset.ready = "true";
           }).catch((cause) => {
             show(
-              `Preview ${previewHead.slice(0, 8)}\nRenderer preparation failed:\n` +
+              "Renderer preparation failed:\n" +
               `${cause?.stack ?? cause?.message ?? String(cause)}`,
             );
           });
@@ -66,7 +65,7 @@
         if (!probe && elapsed >= 12000) {
           const datasets = documentElement?.dataset ?? {};
           show(
-            `Preview ${previewHead.slice(0, 8)}\nRenderer boot timeout.\n` +
+            "Renderer boot timeout.\n" +
             `requestedBackend=${datasets.requestedBackend ?? ""}\n` +
             `actualBackend=${datasets.actualBackend ?? ""}\n` +
             `fallbackReason=${datasets.fallbackReason ?? ""}\n` +
@@ -75,33 +74,17 @@
         }
       } catch (cause) {
         show(
-          `Preview ${previewHead.slice(0, 8)}\nDiagnostic failed:\n` +
+          "Diagnostic failed:\n" +
           `${cause?.stack ?? cause?.message ?? String(cause)}`,
         );
       }
     };
 
-    const start = async () => {
-      try {
-        const response = await fetch(
-          `https://api.github.com/repos/Plicto/Golf-iq/branches/iphone-preview?t=${Date.now()}`,
-          { cache: "no-store" },
-        );
-        if (!response.ok) {
-          throw new Error(`GitHub preview lookup failed: ${response.status}`);
-        }
-        const branch = await response.json();
-        previewHead = branch?.commit?.sha ?? "";
-        if (!/^[0-9a-f]{40}$/.test(previewHead)) {
-          throw new Error("GitHub preview lookup returned an invalid commit");
-        }
-        show(`Loading preview ${previewHead.slice(0, 8)}…`);
-        frame.src =
-          `https://raw.githack.com/Plicto/Golf-iq/${previewHead}/labs/renderer-evaluation/index.html` +
-          `?probe=1&backend=webgl2-hybrid&scenario=north-inlet.watercourse.overview&strict=1&previewHead=${previewHead}`;
-      } catch (cause) {
-        show(`Preview bootstrap failed:\n${cause?.stack ?? cause?.message ?? String(cause)}`);
-      }
+    const start = () => {
+      const nonce = Date.now();
+      show("Loading current preview…");
+      frame.src =
+        `./labs/renderer-evaluation/index.html?probe=1&backend=webgl2-hybrid&scenario=north-inlet.watercourse.overview&strict=1&previewNonce=${nonce}`;
     };
 
     frame.addEventListener("load", () => {
