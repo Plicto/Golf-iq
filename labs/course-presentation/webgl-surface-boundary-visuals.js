@@ -1,9 +1,9 @@
-export const WEBGL_VISUAL_SURFACE_BOUNDARY_VERSION = "smoothed-fairway-v6";
+export const WEBGL_VISUAL_SURFACE_BOUNDARY_VERSION = "organic-fairway-v7";
 
 const FAIRWAY_STATIONS = 240;
 const EDGE_EPSILON_METERS = 0.03;
 const MINIMUM_HALF_WIDTH_METERS = 0.36;
-const SMOOTHING_RADIUS = 7;
+const SMOOTHING_RADIUS = 5;
 
 const clamp = (value, minimum, maximum) =>
   Math.min(maximum, Math.max(minimum, value));
@@ -57,20 +57,23 @@ const smoothSamples = (samples, key) => samples.map((sample, index) => {
 });
 
 const endScaleAt = (progress) => {
-  const start = smoothstep(progress / 0.055);
-  const end = smoothstep((1 - progress) / 0.085);
-  return 0.12 + Math.min(start, end) * 0.88;
+  const start = smoothstep(progress / 0.04);
+  const end = smoothstep((1 - progress) / 0.055);
+  return 0.32 + Math.min(start, end) * 0.68;
 };
 
 const leftInsetAt = (progress) =>
-  0.34 +
-  (0.5 + 0.5 * Math.sin(progress * Math.PI * 5.1 + 0.45)) * 0.31 +
-  (0.5 + 0.5 * Math.sin(progress * Math.PI * 11.4 - 0.8)) * 0.11;
+  0.28 +
+  (0.5 + 0.5 * Math.sin(progress * Math.PI * 3.7 + 0.61)) * 0.48 +
+  (0.5 + 0.5 * Math.sin(progress * Math.PI * 9.3 - 0.37)) * 0.18;
 
 const rightInsetAt = (progress) =>
-  0.32 +
-  (0.5 + 0.5 * Math.sin(progress * Math.PI * 4.4 - 0.25)) * 0.29 +
-  (0.5 + 0.5 * Math.sin(progress * Math.PI * 9.6 + 1.1)) * 0.13;
+  0.26 +
+  (0.5 + 0.5 * Math.sin(progress * Math.PI * 4.25 - 0.18)) * 0.44 +
+  (0.5 + 0.5 * Math.sin(progress * Math.PI * 10.1 + 0.96)) * 0.2;
+
+const blendedEdge = (smoothed, authored) =>
+  smoothed * 0.76 + authored * 0.24;
 
 const buildVisualFairway = (authored) => {
   const { minimumZ, maximumZ } = polygonBounds(authored);
@@ -113,8 +116,12 @@ const buildVisualFairway = (authored) => {
         rawHalfWidth * scale,
       ),
     );
-    const desiredLeft = smoothedLeft[index] + leftInsetAt(sample.progress);
-    const desiredRight = smoothedRight[index] - rightInsetAt(sample.progress);
+    const desiredLeft =
+      blendedEdge(smoothedLeft[index], sample.left) +
+      leftInsetAt(sample.progress);
+    const desiredRight =
+      blendedEdge(smoothedRight[index], sample.right) -
+      rightInsetAt(sample.progress);
     const desiredHalfWidth = Math.max(
       0.006,
       (desiredRight - desiredLeft) * 0.5,
