@@ -117,7 +117,7 @@ export function createPlayableRendererSession({
   const prepareSource = (source) => {
     const identity = webglCourseArtIdentity(source);
     if (!source?.world || source.world.id !== identity.runtimeId) {
-      throw new RangeError("Renderer source world identity is invalid");
+      throw new RangeError("Renderer source world identity is not authoritative");
     }
     return Object.freeze({ ...identity, world: source.world });
   };
