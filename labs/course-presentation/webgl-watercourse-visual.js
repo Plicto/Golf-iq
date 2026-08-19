@@ -4,15 +4,20 @@ import {
   replaceVisualWatercourseGeometry as replaceBaseWatercourseGeometry,
 } from "./webgl-watercourse-visual-v13.js";
 
-export const WEBGL_VISUAL_WATERCOURSE_VERSION = "contained-stream-v20";
+export const WEBGL_VISUAL_WATERCOURSE_VERSION = "contained-stream-v22";
 export const WEBGL_VISUAL_WATER_SURFACE_LIFT_METERS = 0.003;
 
-const WATER_BANK_CLEARANCE_METERS = 0.004;
-const WATER_BED_CLEARANCE_METERS = 0.005;
+const WATER_BANK_CLEARANCE_METERS = 0.05;
+const WATER_BED_CLEARANCE_METERS = 0.055;
+const WATER_BANK_BLEND_METERS = 0.9;
+const WATER_BANK_RISE_METERS = 0.018;
+const POLYGON_BOUNDARY_EPSILON_METERS = 1e-6;
 const HEIGHT_SMOOTHING_WEIGHTS = Object.freeze([1, 2, 3, 4, 5, 4, 3, 2, 1]);
 
 const clamp = (value, minimum, maximum) =>
   Math.min(maximum, Math.max(minimum, value));
+
+const mix = (from, to, amount) => from + (to - from) * amount;
 
 const smoothstep = (value) => {
   const amount = clamp(value, 0, 1);
@@ -43,6 +48,46 @@ const smoothStationHeights = (raw) => raw.map((height, index) => {
   return Math.min(total / weightTotal, height);
 });
 
+const pointSegmentDistanceSquared = (point, start, end) => {
+  const dx = end.x - start.x;
+  const dz = end.z - start.z;
+  const lengthSquared = dx * dx + dz * dz;
+  if (lengthSquared <= 1e-12) {
+    return (point.x - start.x) ** 2 + (point.z - start.z) ** 2;
+  }
+  const progress = clamp(
+    ((point.x - start.x) * dx + (point.z - start.z) * dz) /
+      lengthSquared,
+    0,
+    1,
+  );
+  const x = start.x + dx * progress;
+  const z = start.z + dz * progress;
+  return (point.x - x) ** 2 + (point.z - z) ** 2;
+};
+
+const distanceToPolygonBoundary = (polygon, point) => {
+  let distanceSquared = Number.POSITIVE_INFINITY;
+  for (let index = 0; index < polygon.length; index += 1) {
+    distanceSquared = Math.min(
+      distanceSquared,
+      pointSegmentDistanceSquared(
+        point,
+        polygon[index],
+        polygon[(index + 1) % polygon.length],
+      ),
+    );
+  }
+  return Math.sqrt(distanceSquared);
+};
+
+const pointOnPolygonBoundary = (polygon, point) =>
+  distanceToPolygonBoundary(polygon, point) <=
+    POLYGON_BOUNDARY_EPSILON_METERS;
+
+const pointContainedByPolygon = (polygon, point) =>
+  pointInCoursePolygon(polygon, point) || pointOnPolygonBoundary(polygon, point);
+
 const containedDistance = (
   polygon,
   centerX,
@@ -58,11 +103,11 @@ const containedDistance = (
       x: centerX + normalX * direction * distance,
       z: centerZ + normalZ * direction * distance,
     };
-    if (pointInCoursePolygon(polygon, point)) return distance;
+    if (pointContainedByPolygon(polygon, point)) return distance;
     distance *= 0.82;
   }
   const center = { x: centerX, z: centerZ };
-  if (!pointInCoursePolygon(polygon, center)) {
+  if (!pointContainedByPolygon(polygon, center)) {
     throw new RangeError("visual stream station center escapes gameplay water");
   }
   return 0.003;
@@ -89,33 +134,33 @@ const reshapeStreamGroup = (world, polygon) => {
     const normalZ = widthZ / width;
     const halfWidth = width * 0.5;
 
-    const startBlend = smoothstep(progress / 0.22);
-    const endBlend = smoothstep((1 - progress) / 0.18);
-    const endScale = 0.015 + Math.min(startBlend, endBlend) * 0.985;
+    const startBlend = smoothstep(progress / 0.055);
+    const endBlend = smoothstep((1 - progress) / 0.065);
+    const terminalScale = 0.28 + Math.min(startBlend, endBlend) * 0.72;
     const widthVariation = clamp(
-      0.79 +
-        Math.sin(progress * Math.PI * 3.1 + 0.58) * 0.09 +
-        Math.sin(progress * Math.PI * 6.8 - 0.42) * 0.032,
-      0.66,
-      0.92,
+      0.71 +
+        Math.sin(progress * Math.PI * 2.55 + 0.52) * 0.075 +
+        Math.sin(progress * Math.PI * 7.15 - 0.63) * 0.036,
+      0.59,
+      0.84,
     );
     const baseHalfWidth = halfWidth * clamp(
-      endScale * widthVariation,
-      0.015,
-      0.92,
+      terminalScale * widthVariation,
+      0.16,
+      0.86,
     );
     const asymmetry = clamp(
-      Math.sin(progress * Math.PI * 3.7 + 0.72) * 0.075 +
-        Math.sin(progress * Math.PI * 1.55 - 0.38) * 0.03,
-      -0.1,
-      0.1,
+      Math.sin(progress * Math.PI * 3.25 + 0.83) * 0.095 +
+        Math.sin(progress * Math.PI * 1.35 - 0.31) * 0.035,
+      -0.13,
+      0.13,
     );
     const leftRequested = Math.min(
-      halfWidth * 0.94,
+      halfWidth * 0.92,
       baseHalfWidth * (1 + asymmetry),
     );
     const rightRequested = Math.min(
-      halfWidth * 0.94,
+      halfWidth * 0.92,
       baseHalfWidth * (1 - asymmetry),
     );
     const leftDistance = containedDistance(
@@ -171,7 +216,7 @@ const reshapeStreamGroup = (world, polygon) => {
     ...[...shapedRight].reverse(),
   ]);
 
-  if (reshaped.some((point) => !pointInCoursePolygon(polygon, point))) {
+  if (reshaped.some((point) => !pointContainedByPolygon(polygon, point))) {
     throw new RangeError("visual stream containment fit failed");
   }
   return reshaped;
@@ -346,12 +391,24 @@ export function createVisualWaterTerrainWorld(world, visualWorld) {
       const point = { x, z };
       let height = original;
       for (let index = 0; index < groups.length; index += 1) {
-        if (!pointInCoursePolygon(groups[index], point)) continue;
         const waterHeight = waterHeightAtPoint(centerlines[index], point) +
           WEBGL_VISUAL_WATER_SURFACE_LIFT_METERS;
+        if (pointInCoursePolygon(groups[index], point)) {
+          height = Math.min(
+            height,
+            waterHeight - WATER_BED_CLEARANCE_METERS,
+          );
+          continue;
+        }
+        const bankDistance = distanceToPolygonBoundary(groups[index], point);
+        if (bankDistance >= WATER_BANK_BLEND_METERS) continue;
+        const bankBlend = 1 - smoothstep(
+          bankDistance / WATER_BANK_BLEND_METERS,
+        );
+        const bankHeight = waterHeight + WATER_BANK_RISE_METERS;
         height = Math.min(
           height,
-          waterHeight - WATER_BED_CLEARANCE_METERS,
+          mix(original, bankHeight, bankBlend),
         );
       }
       return height;
