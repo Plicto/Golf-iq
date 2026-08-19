@@ -1,18 +1,18 @@
 {
-  "schemaVersion": 1,
-  "algorithm": "sha256",
+  "schemaVersion": 2,
+  "algorithm": "git-blob-sha1+sha256",
   "entrypoints": [
     {
       "path": "/labs/course-presentation/index.html",
-      "sha256": "28b8f810ce16cb7fb2c1de42ac83dca670e079f268bfa67b646ebb6cf30365a8"
+      "gitBlobSha1": "7f65d11a103c212828bfc40d374fd6b5f2cf741a"
     },
     {
       "path": "/labs/renderer-device-gate/index.html",
-      "sha256": "47cdf55d60b32182cc4d71eb4061322457d7c3ef57cd1975ee0193ab1d637b39"
+      "gitBlobSha1": "6f9889d4bd790f3550f02268e81778a5489dca16"
     },
     {
       "path": "/labs/renderer-evaluation/index.html",
-      "sha256": "b2ac3039df8d321450ff61f559b0117761c7aa12d01cc2fe47d1d494ea67f704"
+      "gitBlobSha1": "85cd88b899a44d59fb0af762fa5d7eb24895fd25"
     }
   ],
   "files": [
@@ -49,8 +49,11 @@
     "/labs/course-presentation/webgl-course-art.js",
     "/labs/course-presentation/webgl-course-renderer.js",
     "/labs/course-presentation/webgl-rough-vegetation.js",
+    "/labs/course-presentation/webgl-surface-boundary-visuals.js",
     "/labs/course-presentation/webgl-terrain-materials.js",
+    "/labs/course-presentation/webgl-watercourse-visual-v13.js",
     "/labs/course-presentation/webgl-watercourse-visual-v8.js",
+    "/labs/course-presentation/webgl-watercourse-visual.js",
     "/labs/renderer-device-gate/renderer-device-gate-protocol.js",
     "/labs/renderer-device-gate/renderer-device-gate.css",
     "/labs/renderer-device-gate/renderer-device-gate.js",
@@ -58,5 +61,5 @@
     "/labs/renderer-evaluation/renderer-evaluation.js",
     "/quality/render-budgets.v1.json"
   ],
-  "digest": "2112df9e80e0bcecb3cf177f424ea1ee2dbc5b804d150e03bcb44e92001fe45e"
+  "digest": "2349dbdf94ff6f84d1f48fff6c87b7da77f6214b525e03295d8ea144349c17f3"
 }
