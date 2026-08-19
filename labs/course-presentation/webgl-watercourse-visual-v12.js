@@ -1,7 +1,5 @@
 import {
   WEBGL_SURFACE_MATERIAL_IDS,
-  WEBGL_TERRAIN_COLUMNS,
-  WEBGL_TERRAIN_ROWS,
   pointInCoursePolygon,
 } from "./webgl-terrain-materials.js";
 
@@ -9,9 +7,9 @@ export const WEBGL_VISUAL_WATERCOURSE_VERSION = "tangent-stream-v12";
 export const WEBGL_VISUAL_WATER_SURFACE_LIFT_METERS = 0.008;
 
 const STREAM_STATIONS = 112;
-const TERRAIN_BED_DEPTH_METERS = 0.12;
-const TERRAIN_BANK_RISE_PER_METER = 0.045;
-const TERRAIN_OUTER_BLEND_METERS = 4.5;
+const TERRAIN_BED_DEPTH_METERS = 0.08;
+const TERRAIN_BANK_LINEAR_RISE = 0.04;
+const TERRAIN_BANK_QUADRATIC_RISE = 0.003;
 
 const CONTROLS = Object.freeze({
   "north-inlet": Object.freeze({ axis: "z", points: Object.freeze([
@@ -30,8 +28,6 @@ const CONTROLS = Object.freeze({
 
 const clamp = (value, minimum, maximum) =>
   Math.min(maximum, Math.max(minimum, value));
-
-const mix = (from, to, amount) => from + (to - from) * amount;
 
 const smoothstep = (value) => {
   const amount = clamp(value, 0, 1);
@@ -257,25 +253,12 @@ const distanceToBoundary = (points, point) => {
   return distance;
 };
 
-const terrainBankHeightAt = (
-  original,
-  waterLevel,
-  distance,
-  innerBankWidth,
-) => {
+const terrainBankHeightAt = (original, waterLevel, distance) => {
   const bedHeight = waterLevel - TERRAIN_BED_DEPTH_METERS;
-  if (distance <= innerBankWidth) {
-    return Math.min(
-      original,
-      bedHeight + distance * TERRAIN_BANK_RISE_PER_METER,
-    );
-  }
-  const innerCeiling = bedHeight +
-    innerBankWidth * TERRAIN_BANK_RISE_PER_METER;
-  const blend = smoothstep(
-    (distance - innerBankWidth) / TERRAIN_OUTER_BLEND_METERS,
-  );
-  return Math.min(original, mix(innerCeiling, original, blend));
+  const ceiling = bedHeight +
+    TERRAIN_BANK_LINEAR_RISE * distance +
+    TERRAIN_BANK_QUADRATIC_RISE * distance * distance;
+  return Math.min(original, ceiling);
 };
 
 export function replaceVisualWatercourseGeometry(geometry, world) {
@@ -389,11 +372,6 @@ export function createVisualWatercourseWorld(world) {
 export function createVisualWaterTerrainWorld(world, visualWorld) {
   const groups = visualWorld.waterSurfaceGroups ?? [];
   const levels = visualWorld.waterLevels ?? [];
-  const gridDiagonal = Math.hypot(
-    (world.bounds.maximumX - world.bounds.minimumX) / WEBGL_TERRAIN_COLUMNS,
-    (world.bounds.maximumZ - world.bounds.minimumZ) / WEBGL_TERRAIN_ROWS,
-  );
-  const innerBankWidth = gridDiagonal + 0.35;
   return Object.freeze({
     ...world,
     waterSurfacePoints: Object.freeze([]),
@@ -412,17 +390,12 @@ export function createVisualWaterTerrainWorld(world, visualWorld) {
           );
           continue;
         }
-        const distance = distanceToBoundary(points, point);
-        if (distance > innerBankWidth + TERRAIN_OUTER_BLEND_METERS) {
-          continue;
-        }
         bestHeight = Math.min(
           bestHeight,
           terrainBankHeightAt(
             original,
             waterLevel,
-            distance,
-            innerBankWidth,
+            distanceToBoundary(points, point),
           ),
         );
       }
