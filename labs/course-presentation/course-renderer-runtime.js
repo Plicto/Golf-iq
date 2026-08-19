@@ -84,6 +84,15 @@ const captureCanvasLayers = (presentationCanvas, worldCanvas = null) => {
   });
 };
 
+const webglPresentationFrame = (frame) => Object.freeze({
+  ...frame,
+  world: Object.freeze({
+    ...frame.world,
+    waterSurfacePoints: Object.freeze([]),
+    waterSurfaceGroups: Object.freeze([]),
+  }),
+});
+
 export function createPlayableRendererSession({
   worldCanvas,
   presentationCanvas,
@@ -217,9 +226,11 @@ export function createPlayableRendererSession({
         reducedMotion: prepared.reducedMotion,
         wind: prepared.wind,
       });
-      renderCoursePresentationLayer(presentationContext, prepared, {
-        includeBunkers: false,
-      });
+      renderCoursePresentationLayer(
+        presentationContext,
+        webglPresentationFrame(prepared),
+        { includeBunkers: false },
+      );
       return stats;
     };
     return Object.freeze({
