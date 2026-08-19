@@ -261,6 +261,7 @@ const waterHeightAtPoint = (centerline, point) => {
 
 export function createVisualWatercourseWorld(world) {
   const baseWorld = createBaseWatercourseWorld(world);
+  if (baseWorld === world) return world;
   const groups = baseWorld.waterSurfaceGroups ?? [];
   if (groups.length === 0) return baseWorld;
   const reshapedGroups = Object.freeze(
@@ -276,6 +277,9 @@ export function createVisualWatercourseWorld(world) {
 }
 
 export function replaceVisualWatercourseGeometry(geometry, world) {
+  if (world?.visualWatercourseVersion !== WEBGL_VISUAL_WATERCOURSE_VERSION) {
+    return geometry;
+  }
   const replaced = replaceBaseWatercourseGeometry(geometry, world);
   const waterBatch = waterBatchFor(replaced);
   if (!waterBatch) return replaced;
@@ -325,6 +329,12 @@ export function replaceVisualWatercourseGeometry(geometry, world) {
 }
 
 export function createVisualWaterTerrainWorld(world, visualWorld) {
+  if (
+    visualWorld?.visualWatercourseVersion !==
+      WEBGL_VISUAL_WATERCOURSE_VERSION
+  ) {
+    return world;
+  }
   const groups = visualWorld.waterSurfaceGroups ?? [];
   const centerlines = groups.map(centerlineFor);
   return Object.freeze({
