@@ -44,7 +44,10 @@ self.addEventListener("message", async (event) => {
     );
     const startedAt = performance.now();
     const terrainGeometry = replaceVisualWatercourseGeometry(
-      createWebglTerrainGeometry(terrainWorld),
+      createWebglTerrainGeometry(terrainWorld, {
+        columns: 144,
+        rows: 288,
+      }),
       visualWorld,
     );
     const vegetationInstances = createRoughVegetationInstances(surfaceWorld, {
