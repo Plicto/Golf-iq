@@ -36,10 +36,10 @@ const horizontalIntersections = (points, z) => {
 
 const crossSectionAt = (points, z) => {
   const intersections = horizontalIntersections(points, z);
-  if (intersections.length < 2) return null;
+  if (intersections.length !== 2) return null;
   return Object.freeze({
     left: intersections[0],
-    right: intersections.at(-1),
+    right: intersections[1],
   });
 };
 
