@@ -11,7 +11,7 @@ import {
   createVisualWaterTerrainWorld,
   createVisualWatercourseWorld,
   replaceVisualWatercourseGeometry,
-} from "./webgl-watercourse-visual-v11.js";
+} from "./webgl-watercourse-visual-v13.js";
 
 const assertRequest = (message) => {
   const identity = message?.identity;
@@ -44,7 +44,10 @@ self.addEventListener("message", async (event) => {
     );
     const startedAt = performance.now();
     const terrainGeometry = replaceVisualWatercourseGeometry(
-      createWebglTerrainGeometry(terrainWorld),
+      createWebglTerrainGeometry(terrainWorld, {
+        columns: 144,
+        rows: 288,
+      }),
       visualWorld,
     );
     const vegetationInstances = createRoughVegetationInstances(surfaceWorld, {
