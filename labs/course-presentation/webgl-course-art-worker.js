@@ -36,10 +36,10 @@ self.addEventListener("message", async (event) => {
     const visualWorld = createVisualWatercourseWorld(world);
     const startedAt = performance.now();
     const terrainGeometry = replaceVisualWatercourseGeometry(
-      createWebglTerrainGeometry(visualWorld),
+      createWebglTerrainGeometry(world),
       visualWorld,
     );
-    const vegetationInstances = createRoughVegetationInstances(visualWorld, {
+    const vegetationInstances = createRoughVegetationInstances(world, {
       terrainGeometry,
     });
     const art = {
