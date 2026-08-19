@@ -54,15 +54,26 @@ const clearError = () => {
   errorLabel.textContent = "";
 };
 
-const hexDigest = async (bytes) => {
-  const digest = await crypto.subtle.digest("SHA-256", bytes);
+const digestHex = async (algorithm, bytes) => {
+  const digest = await crypto.subtle.digest(algorithm, bytes);
   return [...new Uint8Array(digest)]
     .map((byte) => byte.toString(16).padStart(2, "0"))
     .join("");
 };
 
+const hexDigest = (bytes) => digestHex("SHA-256", bytes);
+
 const textDigest = (value) =>
   hexDigest(new TextEncoder().encode(value));
+
+const gitBlobSha1 = async (bytes) => {
+  const body = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+  const header = new TextEncoder().encode(`blob ${body.byteLength}\0`);
+  const source = new Uint8Array(header.byteLength + body.byteLength);
+  source.set(header, 0);
+  source.set(body, header.byteLength);
+  return digestHex("SHA-1", source);
+};
 
 const randomUuid = () => {
   if (typeof crypto.randomUUID === "function") return crypto.randomUUID();
@@ -77,17 +88,35 @@ const sourceResponseType = (path) => {
   if (path.endsWith(".js")) return /(?:java|ecma)script/i;
   if (path.endsWith(".css")) return /^text\/css$/i;
   if (path.endsWith(".json")) return /^application\/json$/i;
+  if (path.endsWith(".html")) return /^text\/html$/i;
   return null;
 };
 
-const PAGE_BASE = location.pathname.match(
-  /^(.*)\/labs\/renderer-visual-gate(?:\/|$)/,
-)?.[1] || "/Golf-iq";
-const hostedSourcePath = (path) => `${PAGE_BASE}${path}`;
+const sourceRootPath = (() => {
+  const marker = "/labs/renderer-visual-gate/";
+  const index = location.pathname.indexOf(marker);
+  if (index < 0) {
+    throw new Error("Renderer visual gate path is not canonical");
+  }
+  return location.pathname.slice(0, index);
+})();
 
-const assertSourceResponse = (response, path) => {
+const sourceRequestUrl = (path, fingerprint = null) => {
+  const basePath = sourceRootPath ? `${sourceRootPath}/` : "/";
+  const url = new URL(path.replace(/^\//, ""), `${location.origin}${basePath}`);
+  url.searchParams.set("sourceCheck", randomUuid());
+  if (fingerprint) {
+    url.searchParams.set("rendererSourceFingerprint", fingerprint);
+  }
+  return url;
+};
+
+const assertSourceResponse = (response, path, requestUrl) => {
   if (!response.ok) throw new Error(`Renderer source is unavailable: ${path}`);
-  if (response.redirected || new URL(response.url).pathname !== hostedSourcePath(path)) {
+  if (
+    response.redirected ||
+    new URL(response.url).pathname !== requestUrl.pathname
+  ) {
     throw new Error(`Renderer source redirected unexpectedly: ${path}`);
   }
   if (response.headers.get("cf-mitigated") === "challenge") {
@@ -102,23 +131,15 @@ const assertSourceResponse = (response, path) => {
   }
 };
 
-const sourceRequestUrl = (path, fingerprint = null) => {
-  const url = new URL(hostedSourcePath(path), location.origin);
-  url.searchParams.set("sourceCheck", randomUuid());
-  if (fingerprint) {
-    url.searchParams.set("rendererSourceFingerprint", fingerprint);
-  }
-  return url;
-};
-
 const rendererSourceManifest = async () => {
   const path = "/quality/renderer-source-manifest.v1.json";
-  const response = await fetch(sourceRequestUrl(path), { cache: "no-store" });
-  assertSourceResponse(response, path);
+  const url = sourceRequestUrl(path);
+  const response = await fetch(url, { cache: "no-store" });
+  assertSourceResponse(response, path, url);
   const manifest = await response.json();
   if (
-    manifest?.schemaVersion !== 1 ||
-    manifest?.algorithm !== "sha256" ||
+    manifest?.schemaVersion !== 2 ||
+    manifest?.algorithm !== "git-blob-sha1+sha256" ||
     !Array.isArray(manifest.entrypoints) ||
     manifest.entrypoints.length === 0 ||
     manifest.entrypoints.some((entrypoint) =>
@@ -127,16 +148,19 @@ const rendererSourceManifest = async () => {
       typeof entrypoint.path !== "string" ||
       !entrypoint.path.startsWith("/") ||
       !entrypoint.path.endsWith(".html") ||
-      !/^[0-9a-f]{64}$/.test(entrypoint.sha256)) ||
+      !/^[0-9a-f]{40}$/.test(entrypoint.gitBlobSha1)) ||
     new Set(manifest.entrypoints.map(({ path: entryPath }) => entryPath)).size !==
       manifest.entrypoints.length ||
+    manifest.entrypoints.some((entrypoint, index) =>
+      index > 0 && manifest.entrypoints[index - 1].path >= entrypoint.path) ||
     !Array.isArray(manifest.files) ||
     manifest.files.length === 0 ||
     new Set(manifest.files).size !== manifest.files.length ||
-    manifest.files.some((sourcePath) =>
+    manifest.files.some((sourcePath, index) =>
       typeof sourcePath !== "string" ||
       !sourcePath.startsWith("/") ||
-      !/\.(?:css|js|json)$/.test(sourcePath)) ||
+      !/\.(?:css|js|json)$/.test(sourcePath) ||
+      (index > 0 && manifest.files[index - 1] >= sourcePath)) ||
     !/^[0-9a-f]{64}$/.test(manifest.digest)
   ) {
     throw new Error("Renderer source manifest is invalid");
@@ -149,14 +173,24 @@ const verifiedSourceFingerprint = async () => {
   const manifest = await rendererSourceManifest();
   const source = [];
   for (const path of manifest.files) {
-    const response = await fetch(sourceRequestUrl(path, manifest.digest), {
-      cache: "no-store",
-    });
-    assertSourceResponse(response, path);
-    source.push(`${path}\0${await response.text()}\0`);
+    const url = sourceRequestUrl(path, manifest.digest);
+    const response = await fetch(url, { cache: "no-store" });
+    assertSourceResponse(response, path, url);
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    source.push(`${path}\0git-sha1:${await gitBlobSha1(bytes)}\0`);
   }
   for (const entrypoint of manifest.entrypoints) {
-    source.push(`${entrypoint.path}\0sha256:${entrypoint.sha256}\0`);
+    const url = sourceRequestUrl(entrypoint.path, manifest.digest);
+    const response = await fetch(url, { cache: "no-store" });
+    assertSourceResponse(response, entrypoint.path, url);
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    const blobSha1 = await gitBlobSha1(bytes);
+    if (blobSha1 !== entrypoint.gitBlobSha1) {
+      throw new Error(
+        `Renderer entrypoint Git blob does not match: ${entrypoint.path}`,
+      );
+    }
+    source.push(`${entrypoint.path}\0git-sha1:${blobSha1}\0`);
   }
   const actual = await textDigest(source.join(""));
   if (actual !== manifest.digest) {
@@ -413,7 +447,7 @@ Promise.resolve().then(async () => {
   assertPhysicalEnvironment();
   state.fingerprint = await verifiedSourceFingerprint();
   if (state.fingerprint !== VISUAL_GATE_RENDERER_FINGERPRINT) {
-    throw new Error("This checkpoint does not contain the PR223 renderer source");
+    throw new Error("This checkpoint does not contain the PR225 renderer source");
   }
   state.probe = await probeReady();
   const ready = await state.probe.ready;
