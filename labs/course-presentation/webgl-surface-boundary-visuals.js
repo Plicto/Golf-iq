@@ -6,8 +6,8 @@ const FAIRWAY_STATIONS = 320;
 const MINIMUM_HALF_WIDTH_METERS = 0.25;
 const CENTER_SMOOTHING_RADIUS_METERS = 13;
 const WIDTH_SMOOTHING_RADIUS_METERS = 19;
-const END_INSET_METERS = 1.2;
-const CANDIDATE_INSETS_METERS = Object.freeze([0.45, 0.8, 1.15, 1.5, 1.9]);
+const END_INSET_METERS = 8;
+const CANDIDATE_INSETS_METERS = Object.freeze([0.6, 0.8, 1, 1.2, 1.5]);
 const SMOOTHING_OFFSETS = Object.freeze([-1, -0.75, -0.5, -0.25, 0, 0.25, 0.5, 0.75, 1]);
 const SMOOTHING_WEIGHTS = Object.freeze([1, 2, 3, 5, 7, 5, 3, 2, 1]);
 
@@ -66,8 +66,8 @@ const buildCandidate = (
   maximumZ,
   inset,
 ) => {
-  const firstZ = minimumZ + Math.min(END_INSET_METERS, (maximumZ - minimumZ) * 0.025);
-  const lastZ = maximumZ - Math.min(END_INSET_METERS, (maximumZ - minimumZ) * 0.025);
+  const firstZ = minimumZ + Math.min(END_INSET_METERS, (maximumZ - minimumZ) * 0.04);
+  const lastZ = maximumZ - Math.min(END_INSET_METERS, (maximumZ - minimumZ) * 0.04);
   const left = [];
   const right = [];
   for (let index = 0; index < FAIRWAY_STATIONS; index += 1) {
