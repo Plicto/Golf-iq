@@ -11,7 +11,7 @@ import {
   createVisualWaterTerrainWorld,
   createVisualWatercourseWorld,
   replaceVisualWatercourseGeometry,
-} from "./webgl-watercourse-visual-v11.js";
+} from "./webgl-watercourse-visual-v12.js";
 
 const assertRequest = (message) => {
   const identity = message?.identity;
