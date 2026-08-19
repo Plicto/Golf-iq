@@ -1,6 +1,8 @@
 import { loadRecoveryHoleArtSource } from "./recovery-hole-catalog.js";
 import { createRoughVegetationInstances } from
   "./webgl-rough-vegetation.js";
+import { createVisualSurfaceBoundaryWorld } from
+  "./webgl-surface-boundary-visuals.js";
 import {
   WEBGL_GROUND_ART_VERSION,
   createWebglTerrainGeometry,
@@ -33,13 +35,14 @@ self.addEventListener("message", async (event) => {
   try {
     const identity = assertRequest(event.data);
     const { world } = await loadRecoveryHoleArtSource(identity);
-    const visualWorld = createVisualWatercourseWorld(world);
+    const surfaceWorld = createVisualSurfaceBoundaryWorld(world);
+    const visualWorld = createVisualWatercourseWorld(surfaceWorld);
     const startedAt = performance.now();
     const terrainGeometry = replaceVisualWatercourseGeometry(
-      createWebglTerrainGeometry(world),
+      createWebglTerrainGeometry(surfaceWorld),
       visualWorld,
     );
-    const vegetationInstances = createRoughVegetationInstances(world, {
+    const vegetationInstances = createRoughVegetationInstances(surfaceWorld, {
       terrainGeometry,
     });
     const art = {
