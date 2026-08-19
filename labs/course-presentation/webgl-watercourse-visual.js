@@ -4,7 +4,7 @@ import {
   replaceVisualWatercourseGeometry as replaceBaseWatercourseGeometry,
 } from "./webgl-watercourse-visual-v13.js";
 
-export const WEBGL_VISUAL_WATERCOURSE_VERSION = "contained-stream-v22";
+export const WEBGL_VISUAL_WATERCOURSE_VERSION = "contained-stream-v23";
 export const WEBGL_VISUAL_WATER_SURFACE_LIFT_METERS = 0.003;
 
 const WATER_BANK_CLEARANCE_METERS = 0.05;
@@ -134,33 +134,26 @@ const reshapeStreamGroup = (world, polygon) => {
     const normalZ = widthZ / width;
     const halfWidth = width * 0.5;
 
-    const startBlend = smoothstep(progress / 0.055);
-    const endBlend = smoothstep((1 - progress) / 0.065);
-    const terminalScale = 0.28 + Math.min(startBlend, endBlend) * 0.72;
     const widthVariation = clamp(
-      0.71 +
-        Math.sin(progress * Math.PI * 2.55 + 0.52) * 0.075 +
-        Math.sin(progress * Math.PI * 7.15 - 0.63) * 0.036,
-      0.59,
+      0.76 +
+        Math.sin(progress * Math.PI * 2.55 + 0.52) * 0.05 +
+        Math.sin(progress * Math.PI * 7.15 - 0.63) * 0.025,
+      0.66,
       0.84,
     );
-    const baseHalfWidth = halfWidth * clamp(
-      terminalScale * widthVariation,
-      0.16,
-      0.86,
-    );
+    const baseHalfWidth = Math.max(0.45, halfWidth * widthVariation);
     const asymmetry = clamp(
-      Math.sin(progress * Math.PI * 3.25 + 0.83) * 0.095 +
-        Math.sin(progress * Math.PI * 1.35 - 0.31) * 0.035,
-      -0.13,
-      0.13,
+      Math.sin(progress * Math.PI * 3.25 + 0.83) * 0.07 +
+        Math.sin(progress * Math.PI * 1.35 - 0.31) * 0.025,
+      -0.095,
+      0.095,
     );
     const leftRequested = Math.min(
-      halfWidth * 0.92,
+      halfWidth * 0.94,
       baseHalfWidth * (1 + asymmetry),
     );
     const rightRequested = Math.min(
-      halfWidth * 0.92,
+      halfWidth * 0.94,
       baseHalfWidth * (1 - asymmetry),
     );
     const leftDistance = containedDistance(
