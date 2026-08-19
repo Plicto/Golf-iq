@@ -84,6 +84,15 @@ const captureCanvasLayers = (presentationCanvas, worldCanvas = null) => {
   });
 };
 
+const webglPresentationFrame = (frame) => Object.freeze({
+  ...frame,
+  world: Object.freeze({
+    ...frame.world,
+    waterSurfacePoints: Object.freeze([]),
+    waterSurfaceGroups: Object.freeze([]),
+  }),
+});
+
 export function createPlayableRendererSession({
   worldCanvas,
   presentationCanvas,
@@ -108,7 +117,7 @@ export function createPlayableRendererSession({
   const prepareSource = (source) => {
     const identity = webglCourseArtIdentity(source);
     if (!source?.world || source.world.id !== identity.runtimeId) {
-      throw new RangeError("Renderer source world identity is not authoritative");
+      throw new RangeError("Renderer source world identity is invalid");
     }
     return Object.freeze({ ...identity, world: source.world });
   };
@@ -217,9 +226,11 @@ export function createPlayableRendererSession({
         reducedMotion: prepared.reducedMotion,
         wind: prepared.wind,
       });
-      renderCoursePresentationLayer(presentationContext, prepared, {
-        includeBunkers: false,
-      });
+      renderCoursePresentationLayer(
+        presentationContext,
+        webglPresentationFrame(prepared),
+        { includeBunkers: false },
+      );
       return stats;
     };
     return Object.freeze({
