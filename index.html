@@ -16,8 +16,9 @@
 </head>
 <body>
   <iframe id="preview" title="Golf IQ iPhone preview"></iframe>
-  <div id="status"><strong>Golf IQ preview</strong><span id="status-text">Loading current preview…</span></div>
+  <div id="status"><strong>Golf IQ preview</strong><span id="status-text">Loading candidate 08633217…</span></div>
   <script>
+    const CANDIDATE_COMMIT = "08633217bd60c7bdf5fdd23ae21f3205ff39a21e";
     const frame = document.querySelector("#preview");
     const status = document.querySelector("#status");
     const text = document.querySelector("#status-text");
@@ -40,7 +41,7 @@
         const rendererError = documentElement?.dataset?.rendererError;
         if (errors.length || rendererError) {
           show(
-            "Renderer failed:\n" +
+            `Candidate ${CANDIDATE_COMMIT.slice(0, 8)}\nRenderer failed:\n` +
             `${errors.join("\n\n") || rendererError}`,
           );
           return;
@@ -57,7 +58,7 @@
             status.dataset.ready = "true";
           }).catch((cause) => {
             show(
-              "Renderer preparation failed:\n" +
+              `Candidate ${CANDIDATE_COMMIT.slice(0, 8)}\nRenderer preparation failed:\n` +
               `${cause?.stack ?? cause?.message ?? String(cause)}`,
             );
           });
@@ -65,7 +66,7 @@
         if (!probe && elapsed >= 12000) {
           const datasets = documentElement?.dataset ?? {};
           show(
-            "Renderer boot timeout.\n" +
+            `Candidate ${CANDIDATE_COMMIT.slice(0, 8)}\nRenderer boot timeout.\n` +
             `requestedBackend=${datasets.requestedBackend ?? ""}\n` +
             `actualBackend=${datasets.actualBackend ?? ""}\n` +
             `fallbackReason=${datasets.fallbackReason ?? ""}\n` +
@@ -74,17 +75,17 @@
         }
       } catch (cause) {
         show(
-          "Diagnostic failed:\n" +
+          `Candidate ${CANDIDATE_COMMIT.slice(0, 8)}\nDiagnostic failed:\n` +
           `${cause?.stack ?? cause?.message ?? String(cause)}`,
         );
       }
     };
 
     const start = () => {
-      const nonce = Date.now();
-      show("Loading current preview…");
+      show(`Loading candidate ${CANDIDATE_COMMIT.slice(0, 8)}…`);
       frame.src =
-        `./labs/renderer-evaluation/index.html?probe=1&backend=webgl2-hybrid&scenario=north-inlet.watercourse.overview&strict=1&previewNonce=${nonce}`;
+        `https://raw.githack.com/Plicto/Golf-iq/${CANDIDATE_COMMIT}/labs/renderer-evaluation/index.html` +
+        `?probe=1&backend=webgl2-hybrid&scenario=north-inlet.watercourse.overview&strict=1&candidate=${CANDIDATE_COMMIT}`;
     };
 
     frame.addEventListener("load", () => {
