@@ -72,7 +72,7 @@ function dirname(path) {
 }
 
 function originalPathFor(key) {
-  if (key === "boot.tsx") return "apps/lab-first/app/boot.tsx";
+  if (key === "boot.tsx") return "apps/lab-first/boot.tsx";
   if (key.startsWith("app/")) return `apps/lab-first/${key}`;
   return key;
 }
