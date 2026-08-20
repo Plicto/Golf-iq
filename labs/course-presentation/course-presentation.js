@@ -34,6 +34,7 @@ import {
   GREEN_DETAIL_CAMERA,
   STATIC_OVERVIEW_CAMERA,
 } from "./course-renderer.js";
+import { createCanonicalCourseOneHolePackage } from "./canonical-course-one-runtime.js";
 import { loadRecoveryHolePackage } from "./recovery-hole-catalog.js";
 import { createPlayableRendererSession } from "./course-renderer-runtime.js";
 import { resolveRequestedRendererBackend } from "./renderer-release-policy.js";
@@ -66,6 +67,7 @@ const parentQuery = (() => {
 })();
 const queryValue = (name) => query.get(name) ?? parentQuery?.get(name) ?? null;
 const gameMode = query.get("game") === "1";
+const recoveryTestMode = queryValue("labTest") === "1";
 const standaloneFlyby = queryValue("presentation") === "flyby";
 const requestedBackend = resolveRequestedRendererBackend(queryValue("renderer"));
 const strictBackend = queryValue("strictRenderer") === "1";
@@ -77,8 +79,10 @@ const rendererSession = createPlayableRendererSession({
   onContextLost: () => scheduleRendererRefresh(),
 });
 
-const INITIAL_PACKAGE = await loadRecoveryHolePackage("north-inlet");
-const INITIAL_PRESENTATION = INITIAL_PACKAGE.presentation;
+const INITIAL_PACKAGE = recoveryTestMode
+  ? await loadRecoveryHolePackage("north-inlet")
+  : null;
+const INITIAL_PRESENTATION = INITIAL_PACKAGE?.presentation ?? null;
 
 const rendererSourceForPackage = (loadedPackage) => Object.freeze({
   sourceKind: loadedPackage.descriptor.sourceKind,
@@ -168,17 +172,17 @@ const state = {
   lastRendererFrame: null,
   reducedMotion: reduceMotionQuery.matches,
   environmentEpochMs: performance.now(),
-  currentEvent: NORTH_INLET_DRIVE_TAPE.events[0],
-  activeTape: NORTH_INLET_DRIVE_TAPE,
-  activeBroadcastTrack: NORTH_INLET_BROADCAST_TRACK,
-  activeTracerTrack: NORTH_INLET_BROADCAST_TRACER,
+  currentEvent: INITIAL_PACKAGE ? NORTH_INLET_DRIVE_TAPE.events[0] : null,
+  activeTape: INITIAL_PACKAGE ? NORTH_INLET_DRIVE_TAPE : null,
+  activeBroadcastTrack: INITIAL_PACKAGE ? NORTH_INLET_BROADCAST_TRACK : null,
+  activeTracerTrack: INITIAL_PACKAGE ? NORTH_INLET_BROADCAST_TRACER : null,
   activePuttTrack: null,
   addressSample: null,
   shotId: null,
   resumeAfterVisibility: false,
   result: null,
   activePresentation: INITIAL_PRESENTATION,
-  activePackageDescriptor: INITIAL_PACKAGE.descriptor,
+  activePackageDescriptor: INITIAL_PACKAGE?.descriptor ?? null,
   holeLoadToken: 0,
   holeLoadController: null,
 };
@@ -190,6 +194,9 @@ function activeCupTrack() {
 }
 
 function activeDurationMs() {
+  if (!state.activePresentation) {
+    return 1;
+  }
   if (state.mode === "address") {
     return 1;
   }
@@ -422,6 +429,9 @@ function handleRendererFailure(cause) {
 }
 
 function renderFrame() {
+  if (!state.activePresentation || !state.activePackageDescriptor) {
+    return;
+  }
   resizeCanvas();
   const { identity, gameplay, world } = state.activePresentation.definition;
   const flybySample = state.mode === "flyby"
@@ -629,6 +639,9 @@ function scheduleRendererRefresh() {
 }
 
 function play() {
+  if (!state.activePresentation) {
+    return;
+  }
   if (document.hidden) {
     state.resumeAfterVisibility = true;
     return;
@@ -678,6 +691,14 @@ function notifyParent(type, detail = {}) {
 }
 
 function updateCourseAccessibility() {
+  if (!state.activePresentation) {
+    const label = recoveryTestMode
+      ? "Loading Golf IQ recovery course"
+      : "Loading Golf IQ canonical course";
+    canvas.setAttribute("aria-label", label);
+    canvas.textContent = `${label}.`;
+    return;
+  }
   const definition = state.activePresentation.definition;
   const label = `Recorded presentation of ${definition.world.label}, ${definition.identity.holeLabel}`;
   canvas.setAttribute("aria-label", label);
@@ -813,6 +834,15 @@ window.addEventListener("message", async (event) => {
       });
       return;
     }
+    if (!message.canonicalSource && !recoveryTestMode) {
+      notifyParent("golf-iq:hole-error", {
+        requestId,
+        runtimeId,
+        contentRevision,
+        message: "Recovery hole loading requires labTest=1.",
+      });
+      return;
+    }
     state.holeLoadToken += 1;
     state.holeLoadController?.abort();
     const loadController = new AbortController();
@@ -820,10 +850,12 @@ window.addEventListener("message", async (event) => {
     const loadToken = state.holeLoadToken;
     let loadedPackage;
     try {
-      loadedPackage = await loadRecoveryHolePackage(runtimeId);
+      loadedPackage = message.canonicalSource
+        ? createCanonicalCourseOneHolePackage(message.canonicalSource)
+        : await loadRecoveryHolePackage(runtimeId);
       if (loadToken !== state.holeLoadToken) return;
       if (loadedPackage.descriptor.contentRevision !== contentRevision) {
-        throw new RangeError(`Recovery content revision mismatch: ${runtimeId}`);
+        throw new RangeError(`Hole content revision mismatch: ${runtimeId}`);
       }
     } catch (cause) {
       if (loadToken !== state.holeLoadToken) return;
@@ -836,11 +868,12 @@ window.addEventListener("message", async (event) => {
         contentRevision,
         message: cause instanceof Error
           ? cause.message
-          : `Unknown recovery hole runtime: ${runtimeId}`,
+          : `Unknown hole runtime: ${runtimeId}`,
       });
       return;
     }
     try {
+      await rendererSession.ready;
       await rendererSession.prepare(rendererSourceForPackage(loadedPackage), {
         signal: loadController.signal,
       });
@@ -912,7 +945,7 @@ window.addEventListener("message", async (event) => {
         contentRevision,
         message: cause instanceof Error
           ? cause.message
-          : `Recovery hole activation failed: ${runtimeId}`,
+          : `Hole activation failed: ${runtimeId}`,
       });
       if (previous.playing && state.rendererReady) {
         state.playing = false;
@@ -936,6 +969,7 @@ window.addEventListener("message", async (event) => {
     const position = message.position;
     const target = message.target;
     if (
+      !state.activePresentation ||
       !position ||
       !target ||
       ![position.x, position.y, position.z, target.x, target.z].every(Number.isFinite)
@@ -977,6 +1011,12 @@ window.addEventListener("message", async (event) => {
     return;
   }
   if (message.type === "golf-iq:reset-drive") {
+    if (!recoveryTestMode || !state.activePresentation) {
+      notifyParent("golf-iq:hole-error", {
+        message: "Recovery drive reset requires labTest=1.",
+      });
+      return;
+    }
     if (
       state.activePresentation.definition.identity.scenarioId !==
         NORTH_INLET_DRIVE_TAPE.scenarioId
@@ -1002,6 +1042,9 @@ window.addEventListener("message", async (event) => {
     return;
   }
   if (message.type === "golf-iq:restart-hole") {
+    if (!state.activePresentation) {
+      return;
+    }
     pause();
     state.resumeAfterVisibility = false;
     state.mode = "flyby";
@@ -1023,6 +1066,9 @@ window.addEventListener("message", async (event) => {
   }
   const shotId = typeof message.shotId === "string" ? message.shotId : null;
   try {
+    if (!state.activePresentation) {
+      throw new Error("Shot presentation requires an active course");
+    }
     const tape = createPresentationTape(message.tape);
     if (!shotId || message.tapeId !== tape.id) {
       throw new TypeError("Shot playback must identify its immutable tape");
@@ -1075,14 +1121,19 @@ window.addEventListener("message", async (event) => {
 document.body.dataset.gameMode = String(gameMode);
 document.documentElement.dataset.reducedMotion = String(state.reducedMotion);
 updateCourseAccessibility();
-const rendererReady = rendererSession.ready.then(() =>
-  rendererSession.prepare(rendererSourceForPackage(INITIAL_PACKAGE))
-).then(() => {
+const rendererReady = rendererSession.ready.then(async () => {
+  if (INITIAL_PACKAGE) {
+    await rendererSession.prepare(rendererSourceForPackage(INITIAL_PACKAGE));
+  }
   state.rendererReady = true;
   syncRendererStatus();
-  render({ throwOnFailure: true });
+  if (INITIAL_PACKAGE) {
+    render({ throwOnFailure: true });
+    if (gameMode) {
+      play();
+    }
+  }
   if (gameMode) {
-    play();
     notifyParent("golf-iq:lab-ready");
   }
   return syncRendererStatus();

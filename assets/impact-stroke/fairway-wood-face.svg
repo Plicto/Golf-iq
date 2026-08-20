@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 120" fill="none">
+  <defs>
+    <radialGradient id="face" cx="0" cy="0" r="1" gradientTransform="translate(91 58) rotate(90) scale(42 76)" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#414C46"/>
+      <stop offset=".54" stop-color="#151C18"/>
+      <stop offset="1" stop-color="#060907"/>
+    </radialGradient>
+    <linearGradient id="rim" x1="28" y1="29" x2="154" y2="91" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#D5DBD7"/>
+      <stop offset=".28" stop-color="#59645E"/>
+      <stop offset=".68" stop-color="#111714"/>
+      <stop offset="1" stop-color="#AAB4AE"/>
+    </linearGradient>
+  </defs>
+  <path d="M28 42C40 28 63 22 92 22C121 22 145 30 153 45L148 82C120 95 61 95 32 82L28 42Z" fill="url(#rim)"/>
+  <path d="M32 43C43 32 64 28 92 28C119 28 140 34 148 47L143 78C116 89 65 89 37 78L32 43Z" fill="url(#face)" stroke="#26302B" stroke-width="1.3"/>
+  <g stroke="#8A958E" stroke-opacity=".45" stroke-width="1.05">
+    <path d="M37 45C64 40 119 40 144 46"/>
+    <path d="M36 53C64 48 120 48 145 54"/>
+    <path d="M36 61C65 56 120 56 144 62"/>
+    <path d="M37 69C65 64 118 64 143 70"/>
+    <path d="M39 77C67 72 116 72 141 77"/>
+  </g>
+  <g stroke="#DDE3DF" stroke-linecap="round" stroke-width="1.8" opacity=".65">
+    <path d="M43 45H56M45 54H59M47 63H61M50 72H63"/>
+    <path d="M124 46H139M121 55H137M119 64H135M117 73H132"/>
+  </g>
+</svg>

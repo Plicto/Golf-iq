@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none">
+  <defs>
+    <linearGradient id="shaft" x1="8" y1="111" x2="55" y2="54" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#050807"/>
+      <stop offset=".28" stop-color="#26312C"/>
+      <stop offset=".52" stop-color="#0A0E0C"/>
+      <stop offset=".78" stop-color="#4C5852"/>
+      <stop offset="1" stop-color="#101713"/>
+    </linearGradient>
+    <linearGradient id="hosel" x1="45" y1="67" x2="61" y2="48" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#050806"/>
+      <stop offset=".45" stop-color="#727E77"/>
+      <stop offset=".7" stop-color="#1B2420"/>
+      <stop offset="1" stop-color="#A7B0AB"/>
+    </linearGradient>
+    <radialGradient id="crown" cx="0" cy="0" r="1" gradientTransform="translate(80 28) rotate(57) scale(45 39)" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#4B554F"/>
+      <stop offset=".26" stop-color="#252D29"/>
+      <stop offset=".62" stop-color="#0B100E"/>
+      <stop offset="1" stop-color="#020403"/>
+    </radialGradient>
+    <linearGradient id="face" x1="54" y1="17" x2="62" y2="65" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#5D6862"/>
+      <stop offset=".24" stop-color="#202824"/>
+      <stop offset=".62" stop-color="#050806"/>
+      <stop offset="1" stop-color="#3F4944"/>
+    </linearGradient>
+    <linearGradient id="rim" x1="58" y1="18" x2="107" y2="61" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#D0D7D3" stop-opacity=".66"/>
+      <stop offset=".38" stop-color="#29322E" stop-opacity=".18"/>
+      <stop offset=".78" stop-color="#050806" stop-opacity=".3"/>
+      <stop offset="1" stop-color="#9DA7A1" stop-opacity=".58"/>
+    </linearGradient>
+    <pattern id="carbon" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(42)">
+      <path d="M0 0V5M2.5 0V5" stroke="#D5DBD7" stroke-opacity=".055" stroke-width="1"/>
+    </pattern>
+  </defs>
+  <path d="M8 111C21 93 37 73 52 57" stroke="#000" stroke-width="9" stroke-linecap="round" opacity=".48"/>
+  <path d="M8 108C21 91 37 71 54 54" stroke="url(#shaft)" stroke-width="5.4" stroke-linecap="round"/>
+  <path d="M45 67L52 55L59 58L52 70Z" fill="#030504"/>
+  <path d="M49 62L56 50L64 53L58 64L54 66Z" fill="url(#hosel)" stroke="#E1E6E2" stroke-opacity=".32" stroke-width=".8"/>
+  <path d="M60 17C75 8 99 9 110 23C122 38 117 57 101 68C89 77 73 76 63 68C55 61 52 50 53 38C54 29 56 22 60 17Z" fill="url(#crown)" stroke="url(#rim)" stroke-width="1.8"/>
+  <path d="M60 17C55 27 52 39 54 51C55 58 58 64 63 68" stroke="url(#face)" stroke-width="5.4" stroke-linecap="round"/>
+  <g stroke="#C9D1CC" stroke-opacity=".34" stroke-width=".7" stroke-linecap="round">
+    <path d="M57 23L60 22"/><path d="M55 28L59 27"/><path d="M54 33L59 32"/><path d="M54 38L59 37"/><path d="M54 43L59 42"/><path d="M54 48L60 47"/><path d="M55 53L61 52"/><path d="M57 58L62 57"/><path d="M59 63L64 62"/>
+  </g>
+  <path d="M62 17C76 10 98 11 108 24C114 31 116 39 114 47" stroke="#E8ECE9" stroke-opacity=".28" stroke-width="1.2" stroke-linecap="round"/>
+  <path d="M60 17C75 8 99 9 110 23C122 38 117 57 101 68C89 77 73 76 63 68C55 61 52 50 53 38C54 29 56 22 60 17Z" fill="url(#carbon)"/>
+  <path d="M79 25L84 22L89 25L84 28Z" fill="#E7ECE8" opacity=".8"/>
+  <path d="M111 27C117 38 116 50 108 59" stroke="#E2E7E3" stroke-opacity=".28" stroke-width="1" stroke-dasharray="1 2"/>
+</svg>

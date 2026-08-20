@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none">
+  <defs>
+    <linearGradient id="shaft" x1="8" y1="110" x2="57" y2="48" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#3E4843"/>
+      <stop offset=".18" stop-color="#F5F7F4"/>
+      <stop offset=".42" stop-color="#7B8580"/>
+      <stop offset=".7" stop-color="#E9EDE9"/>
+      <stop offset="1" stop-color="#46504B"/>
+    </linearGradient>
+    <linearGradient id="hosel" x1="47" y1="62" x2="65" y2="36" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#4D5752"/>
+      <stop offset=".28" stop-color="#E9ECE9"/>
+      <stop offset=".58" stop-color="#858F8A"/>
+      <stop offset=".82" stop-color="#F5F7F4"/>
+      <stop offset="1" stop-color="#555F5A"/>
+    </linearGradient>
+    <linearGradient id="blade" x1="58" y1="49" x2="105" y2="5" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F8F9F6"/>
+      <stop offset=".2" stop-color="#AAB2AD"/>
+      <stop offset=".43" stop-color="#707975"/>
+      <stop offset=".67" stop-color="#D8DDDA"/>
+      <stop offset=".87" stop-color="#8D9691"/>
+      <stop offset="1" stop-color="#404945"/>
+    </linearGradient>
+    <linearGradient id="toe" x1="99" y1="1" x2="109" y2="15" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FAFBF9"/>
+      <stop offset=".48" stop-color="#A9B1AD"/>
+      <stop offset="1" stop-color="#4B5550"/>
+    </linearGradient>
+    <pattern id="brush" width="4" height="4" patternUnits="userSpaceOnUse">
+      <path d="M0 1H4M0 3H4" stroke="#FFFFFF" stroke-opacity=".05" stroke-width=".45"/>
+    </pattern>
+  </defs>
+  <path d="M8 111C22 92 39 71 55 52" stroke="#0A0F0C" stroke-width="9" stroke-linecap="round" opacity=".38"/>
+  <path d="M8 108C21 90 38 69 56 50" stroke="url(#shaft)" stroke-width="5.2" stroke-linecap="round"/>
+  <path d="M47 64L54 51L61 55L54 68Z" fill="#101613"/>
+  <path d="M51 59C55 53 58 46 61 38L68 39C67 47 63 55 57 62L54 64Z" fill="url(#hosel)" stroke="#F5F7F4" stroke-opacity=".46" stroke-width=".8"/>
+  <path d="M58 42L90 2C94 0 100 2 104 6C106 9 106 13 103 16L71 53C66 55 61 51 59 47Z" fill="url(#blade)" stroke="#FAFBF8" stroke-opacity=".74" stroke-width="1.25"/>
+  <path d="M59 42L90 3C94 1 99 3 103 6" stroke="#FFFFFF" stroke-opacity=".6" stroke-width="1.1" stroke-linecap="round"/>
+  <path d="M103 6C106 9 106 13 103 16" stroke="url(#toe)" stroke-width="2.4" stroke-linecap="round"/>
+  <path d="M58 42L90 2C94 0 100 2 104 6C106 9 106 13 103 16L71 53C66 55 61 51 59 47Z" fill="url(#brush)"/>
+  <g stroke="#363E3A" stroke-width=".9" stroke-linecap="round" opacity=".84">
+    <path d="M61 42L92 5"/>
+    <path d="M62 45L94 6"/>
+    <path d="M64 47L96 8"/>
+    <path d="M66 49L98 10"/>
+    <path d="M68 50L100 12"/>
+    <path d="M70 51L101 14"/>
+  </g>
+  <path d="M59 47C61 51 66 55 71 53L103 16" stroke="#222A26" stroke-opacity=".55" stroke-width="1.1"/>
+</svg>

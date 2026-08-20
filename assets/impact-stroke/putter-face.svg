@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 120" fill="none">
+  <defs>
+    <linearGradient id="face" x1="20" y1="39" x2="162" y2="78" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F2F4F1"/>
+      <stop offset=".18" stop-color="#AAB2AD"/>
+      <stop offset=".48" stop-color="#59635E"/>
+      <stop offset=".72" stop-color="#C6CCC8"/>
+      <stop offset="1" stop-color="#424B47"/>
+    </linearGradient>
+    <pattern id="milling" width="4" height="4" patternUnits="userSpaceOnUse">
+      <path d="M0 1H4M0 3H4" stroke="#FFFFFF" stroke-opacity=".08" stroke-width=".5"/>
+    </pattern>
+  </defs>
+  <path d="M18 42C49 35 131 35 162 42L159 77C126 85 54 85 21 77Z" fill="url(#face)" stroke="#F3F5F2" stroke-opacity=".72" stroke-width="1.8"/>
+  <path d="M21 44C53 38 128 38 159 44" stroke="#FFFFFF" stroke-opacity=".46" stroke-width="1.4"/>
+  <path d="M21 45C52 39 129 39 159 45L156 74C123 81 56 81 24 74Z" fill="url(#milling)"/>
+  <g stroke="#424C47" stroke-opacity=".6" stroke-width="1">
+    <path d="M28 51H152"/><path d="M26 57H154"/><path d="M25 63H155"/><path d="M25 69H155"/>
+  </g>
+  <path d="M90 39V81" stroke="#EBD47F" stroke-width="1.8"/>
+  <path d="M84 44H96" stroke="#EBD47F" stroke-width="1.8" stroke-linecap="round"/>
+</svg>

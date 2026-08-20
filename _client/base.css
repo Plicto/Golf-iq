@@ -1,0 +1,60 @@
+:root {
+  --background: #020604;
+  --foreground: #f4f5ed;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  min-width: 320px;
+  height: 100%;
+  margin: 0;
+}
+
+html,
+body {
+  overflow: hidden;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+.site-shell {
+  display: grid;
+  width: 100%;
+  height: 100svh;
+  place-items: center;
+  overflow: hidden;
+  background: #020604;
+}
+
+#golf-iq-boot {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: #020604;
+  color: #f4f5ed;
+  font-size: 14px;
+  letter-spacing: .02em;
+  z-index: 1000;
+}
+
+#golf-iq-boot[data-error="true"] {
+  color: #ffd2c9;
+  text-align: center;
+  line-height: 1.45;
+}

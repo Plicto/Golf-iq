@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 120" fill="none">
+  <defs>
+    <radialGradient id="face" cx="0" cy="0" r="1" gradientTransform="translate(91 53) rotate(90) scale(54 86)" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#303936"/>
+      <stop offset=".48" stop-color="#121816"/>
+      <stop offset=".82" stop-color="#050807"/>
+      <stop offset="1" stop-color="#242C28"/>
+    </radialGradient>
+    <linearGradient id="rim" x1="22" y1="22" x2="158" y2="95" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#D0D7D2"/>
+      <stop offset=".22" stop-color="#4D5852"/>
+      <stop offset=".62" stop-color="#111714"/>
+      <stop offset="1" stop-color="#A9B2AC"/>
+    </linearGradient>
+    <pattern id="milled" width="5" height="5" patternUnits="userSpaceOnUse">
+      <path d="M0 0L5 5M5 0L0 5" stroke="#DCE2DE" stroke-opacity=".035" stroke-width=".7"/>
+    </pattern>
+  </defs>
+  <path d="M21 35C31 19 58 11 92 11C127 11 153 21 162 39L155 84C127 101 55 101 25 86L21 35Z" fill="url(#rim)"/>
+  <path d="M25 37C35 23 59 17 92 17C124 17 149 25 157 41L150 80C123 94 58 94 30 81L25 37Z" fill="url(#face)" stroke="#202824" stroke-width="1.5"/>
+  <path d="M26 37C36 23 60 18 91 18C123 18 148 26 156 41" stroke="#CFD6D1" stroke-opacity=".26" stroke-width="1.4"/>
+  <path d="M26 37C35 22 60 16 92 16C125 16 150 25 158 40L151 81C123 96 57 96 28 82Z" fill="url(#milled)"/>
+  <g stroke="#78837D" stroke-opacity=".42" stroke-width="1.1">
+    <path d="M30 40C61 34 124 34 154 41"/>
+    <path d="M29 49C61 43 125 43 154 50"/>
+    <path d="M29 58C62 52 124 52 153 59"/>
+    <path d="M30 67C62 61 123 61 152 68"/>
+    <path d="M31 76C63 70 121 70 150 77"/>
+  </g>
+  <g stroke="#DCE2DE" stroke-linecap="round" stroke-width="2" opacity=".72">
+    <path d="M37 39H53M39 49H57M41 59H60M44 69H62"/>
+    <path d="M127 41H145M124 51H143M122 61H141M120 71H138"/>
+  </g>
+  <path d="M91 19V90" stroke="#EAF0EB" stroke-opacity=".12"/>
+</svg>
